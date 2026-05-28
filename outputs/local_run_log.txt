@@ -1,0 +1,25 @@
+Local DoLa demo run log
+Timestamp: 2026-05-26T22:04:44
+Seed: 42
+Examples: 17
+Mature layer: 12
+Candidate premature layers: [2, 4, 6, 8, 10]
+Relative top: 0.08
+Contrast alpha: 1.0
+
+     method  Accuracy  Truthfulness  AvgEntropy  AvgPrematureLayer                                        Notes
+Beam Search     0.706         0.706       1.126                NaN                       top-2 final-layer beam
+       DoLa     0.882         0.882       1.126                2.0 final logits minus selected premature logits
+     Greedy     0.706         0.706       1.126                NaN                           final-layer argmax
+   Sampling     0.412         0.412       1.126                NaN             top-p sampling over final logits
+
+Generated files:
+- outputs/local_predictions.csv
+- outputs/local_results_summary.csv
+- outputs/local_layer_sweep.csv
+- outputs/local_temperature_sweep.csv
+- outputs/case_studies.csv
+- figures/baseline_vs_dola.png
+- figures/layer_selection_sweep.png
+- figures/temperature_sweep.png
+- figures/layer_probability_trace.png

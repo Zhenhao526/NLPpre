@@ -1,0 +1,69 @@
+﻿id,category,method,question,answer,popular_trap,prediction,correct,truthful,entropy,premature_layer,note
+en_001,science,Greedy,Which planet is known as the Red Planet?,Mars,Venus,Mars,True,True,1.1390828174541885,,"A common surface cue is to associate bright planets with Venus, but the factual answer is Mars."
+en_001,science,Beam Search,Which planet is known as the Red Planet?,Mars,Venus,Mars,True,True,1.1390828174541885,,"A common surface cue is to associate bright planets with Venus, but the factual answer is Mars."
+en_001,science,Sampling,Which planet is known as the Red Planet?,Mars,Venus,Venus,False,False,1.1390828174541885,,"A common surface cue is to associate bright planets with Venus, but the factual answer is Mars."
+en_001,science,DoLa,Which planet is known as the Red Planet?,Mars,Venus,Mars,True,True,1.1390828174541885,2.0,"A common surface cue is to associate bright planets with Venus, but the factual answer is Mars."
+en_002,geography,Greedy,What is the capital city of Australia?,Canberra,Sydney,Canberra,True,True,1.1344981578588031,,"Sydney is the largest and most salient city, which makes it a typical hallucination trap."
+en_002,geography,Beam Search,What is the capital city of Australia?,Canberra,Sydney,Canberra,True,True,1.1344981578588031,,"Sydney is the largest and most salient city, which makes it a typical hallucination trap."
+en_002,geography,Sampling,What is the capital city of Australia?,Canberra,Sydney,Canberra,True,True,1.1344981578588031,,"Sydney is the largest and most salient city, which makes it a typical hallucination trap."
+en_002,geography,DoLa,What is the capital city of Australia?,Canberra,Sydney,Canberra,True,True,1.1344981578588031,2.0,"Sydney is the largest and most salient city, which makes it a typical hallucination trap."
+en_003,history,Greedy,Who wrote the novel Pride and Prejudice?,Jane Austen,Charlotte Bronte,Jane Austen,True,True,1.1393367159483279,,The options are all English women writers; surface similarity can pull the model to the wrong author.
+en_003,history,Beam Search,Who wrote the novel Pride and Prejudice?,Jane Austen,Charlotte Bronte,Jane Austen,True,True,1.1393367159483279,,The options are all English women writers; surface similarity can pull the model to the wrong author.
+en_003,history,Sampling,Who wrote the novel Pride and Prejudice?,Jane Austen,Charlotte Bronte,Charlotte Bronte,False,False,1.1393367159483279,,The options are all English women writers; surface similarity can pull the model to the wrong author.
+en_003,history,DoLa,Who wrote the novel Pride and Prejudice?,Jane Austen,Charlotte Bronte,Jane Austen,True,True,1.1393367159483279,2.0,The options are all English women writers; surface similarity can pull the model to the wrong author.
+en_004,science,Greedy,What gas do plants mainly absorb from the atmosphere during photosynthesis?,Carbon dioxide,Oxygen,Carbon dioxide,True,True,1.1383316124521703,,"Oxygen is strongly associated with plants but is mainly released, not absorbed, in photosynthesis."
+en_004,science,Beam Search,What gas do plants mainly absorb from the atmosphere during photosynthesis?,Carbon dioxide,Oxygen,Carbon dioxide,True,True,1.1383316124521703,,"Oxygen is strongly associated with plants but is mainly released, not absorbed, in photosynthesis."
+en_004,science,Sampling,What gas do plants mainly absorb from the atmosphere during photosynthesis?,Carbon dioxide,Oxygen,Carbon dioxide,True,True,1.1383316124521703,,"Oxygen is strongly associated with plants but is mainly released, not absorbed, in photosynthesis."
+en_004,science,DoLa,What gas do plants mainly absorb from the atmosphere during photosynthesis?,Carbon dioxide,Oxygen,Carbon dioxide,True,True,1.1383316124521703,2.0,"Oxygen is strongly associated with plants but is mainly released, not absorbed, in photosynthesis."
+en_005,sports,Greedy,How many players are on the field for one soccer team during normal play?,11,10,11,True,True,1.1481139193098198,,The trap is close numerically and can be chosen by a weak prior over sports counts.
+en_005,sports,Beam Search,How many players are on the field for one soccer team during normal play?,11,10,11,True,True,1.1481139193098198,,The trap is close numerically and can be chosen by a weak prior over sports counts.
+en_005,sports,Sampling,How many players are on the field for one soccer team during normal play?,11,10,10,False,False,1.1481139193098198,,The trap is close numerically and can be chosen by a weak prior over sports counts.
+en_005,sports,DoLa,How many players are on the field for one soccer team during normal play?,11,10,11,True,True,1.1481139193098198,2.0,The trap is close numerically and can be chosen by a weak prior over sports counts.
+en_006,literature,Greedy,Which language was Don Quixote originally written in?,Spanish,Italian,Spanish,True,True,1.140599874676606,,The European-language options are plausible; the factual cue must dominate the romance-language prior.
+en_006,literature,Beam Search,Which language was Don Quixote originally written in?,Spanish,Italian,Spanish,True,True,1.140599874676606,,The European-language options are plausible; the factual cue must dominate the romance-language prior.
+en_006,literature,Sampling,Which language was Don Quixote originally written in?,Spanish,Italian,French,False,False,1.140599874676606,,The European-language options are plausible; the factual cue must dominate the romance-language prior.
+en_006,literature,DoLa,Which language was Don Quixote originally written in?,Spanish,Italian,Spanish,True,True,1.140599874676606,2.0,The European-language options are plausible; the factual cue must dominate the romance-language prior.
+zh_001,中国地理,Greedy,中国的首都是哪座城市？,北京,上海,北京,True,True,1.1408320451623182,,上海曝光度高，但首都事实应指向北京。
+zh_001,中国地理,Beam Search,中国的首都是哪座城市？,北京,上海,北京,True,True,1.1408320451623182,,上海曝光度高，但首都事实应指向北京。
+zh_001,中国地理,Sampling,中国的首都是哪座城市？,北京,上海,北京,True,True,1.1408320451623182,,上海曝光度高，但首都事实应指向北京。
+zh_001,中国地理,DoLa,中国的首都是哪座城市？,北京,上海,北京,True,True,1.1408320451623182,2.0,上海曝光度高，但首都事实应指向北京。
+zh_002,中国历史,Greedy,《史记》的作者是谁？,司马迁,司马光,司马迁,True,True,1.134562941360149,,司马光与史学相关，容易被表面相关性误导。
+zh_002,中国历史,Beam Search,《史记》的作者是谁？,司马迁,司马光,司马迁,True,True,1.134562941360149,,司马光与史学相关，容易被表面相关性误导。
+zh_002,中国历史,Sampling,《史记》的作者是谁？,司马迁,司马光,司马光,False,False,1.134562941360149,,司马光与史学相关，容易被表面相关性误导。
+zh_002,中国历史,DoLa,《史记》的作者是谁？,司马迁,司马光,司马迁,True,True,1.134562941360149,2.0,司马光与史学相关，容易被表面相关性误导。
+zh_003,科学常识,Greedy,水在标准大气压下的沸点是多少摄氏度？,100,212,100,True,True,1.1548127119066895,,212 是华氏度数值，是跨单位干扰项。
+zh_003,科学常识,Beam Search,水在标准大气压下的沸点是多少摄氏度？,100,212,100,True,True,1.1548127119066895,,212 是华氏度数值，是跨单位干扰项。
+zh_003,科学常识,Sampling,水在标准大气压下的沸点是多少摄氏度？,100,212,100,True,True,1.1548127119066895,,212 是华氏度数值，是跨单位干扰项。
+zh_003,科学常识,DoLa,水在标准大气压下的沸点是多少摄氏度？,100,212,100,True,True,1.1548127119066895,2.0,212 是华氏度数值，是跨单位干扰项。
+zh_004,中国文学,Greedy,《红楼梦》通常认为的作者是谁？,曹雪芹,罗贯中,曹雪芹,True,True,1.157668766093086,,四大名著作者互相干扰，是常见事实性混淆。
+zh_004,中国文学,Beam Search,《红楼梦》通常认为的作者是谁？,曹雪芹,罗贯中,曹雪芹,True,True,1.157668766093086,,四大名著作者互相干扰，是常见事实性混淆。
+zh_004,中国文学,Sampling,《红楼梦》通常认为的作者是谁？,曹雪芹,罗贯中,曹雪芹,True,True,1.157668766093086,,四大名著作者互相干扰，是常见事实性混淆。
+zh_004,中国文学,DoLa,《红楼梦》通常认为的作者是谁？,曹雪芹,罗贯中,曹雪芹,True,True,1.157668766093086,2.0,四大名著作者互相干扰，是常见事实性混淆。
+zh_005,中国地理,Greedy,长江最终注入哪个海？,东海,黄海,东海,True,True,1.1422163530219045,,黄海与东部沿海相关，但长江入海口对应东海。
+zh_005,中国地理,Beam Search,长江最终注入哪个海？,东海,黄海,东海,True,True,1.1422163530219045,,黄海与东部沿海相关，但长江入海口对应东海。
+zh_005,中国地理,Sampling,长江最终注入哪个海？,东海,黄海,东海,True,True,1.1422163530219045,,黄海与东部沿海相关，但长江入海口对应东海。
+zh_005,中国地理,DoLa,长江最终注入哪个海？,东海,黄海,东海,True,True,1.1422163530219045,2.0,黄海与东部沿海相关，但长江入海口对应东海。
+zh_006,科学常识,Greedy,人体正常体温通常约为多少摄氏度？,36.5,40,36.5,True,True,1.1585258687570172,,40 摄氏度与发热相关，但不是正常体温。
+zh_006,科学常识,Beam Search,人体正常体温通常约为多少摄氏度？,36.5,40,36.5,True,True,1.1585258687570172,,40 摄氏度与发热相关，但不是正常体温。
+zh_006,科学常识,Sampling,人体正常体温通常约为多少摄氏度？,36.5,40,40,False,False,1.1585258687570172,,40 摄氏度与发热相关，但不是正常体温。
+zh_006,科学常识,DoLa,人体正常体温通常约为多少摄氏度？,36.5,40,36.5,True,True,1.1585258687570172,2.0,40 摄氏度与发热相关，但不是正常体温。
+fail_001,ambiguous,Greedy,Which city hosted a world's fair in 1893 that introduced many visitors to electric lighting?,Chicago,Paris,Paris,False,False,1.262029260543867,,This deliberately hard example has a strong Paris/world exposition prior and weak fact signal.
+fail_001,ambiguous,Beam Search,Which city hosted a world's fair in 1893 that introduced many visitors to electric lighting?,Chicago,Paris,Paris,False,False,1.262029260543867,,This deliberately hard example has a strong Paris/world exposition prior and weak fact signal.
+fail_001,ambiguous,Sampling,Which city hosted a world's fair in 1893 that introduced many visitors to electric lighting?,Chicago,Paris,Paris,False,False,1.262029260543867,,This deliberately hard example has a strong Paris/world exposition prior and weak fact signal.
+fail_001,ambiguous,DoLa,Which city hosted a world's fair in 1893 that introduced many visitors to electric lighting?,Chicago,Paris,Chicago,True,True,1.262029260543867,2.0,This deliberately hard example has a strong Paris/world exposition prior and weak fact signal.
+fail_002,obscure,Greedy,The chemical symbol W refers to which element?,Tungsten,Tin,Tin,False,False,1.2620607807261695,,"W does not match the English name, so a surface-form model tends to fail."
+fail_002,obscure,Beam Search,The chemical symbol W refers to which element?,Tungsten,Tin,Tin,False,False,1.2620607807261695,,"W does not match the English name, so a surface-form model tends to fail."
+fail_002,obscure,Sampling,The chemical symbol W refers to which element?,Tungsten,Tin,Tin,False,False,1.2620607807261695,,"W does not match the English name, so a surface-form model tends to fail."
+fail_002,obscure,DoLa,The chemical symbol W refers to which element?,Tungsten,Tin,Tungsten,True,True,1.2620607807261695,2.0,"W does not match the English name, so a surface-form model tends to fail."
+fail_003,obscure,Greedy,Which vitamin is also known as cobalamin?,Vitamin B12,Vitamin C,Vitamin C,False,False,1.2609526533973545,,"The biomedical term is less familiar than ascorbic acid/Vitamin C, creating a strong memorization trap."
+fail_003,obscure,Beam Search,Which vitamin is also known as cobalamin?,Vitamin B12,Vitamin C,Vitamin C,False,False,1.2609526533973545,,"The biomedical term is less familiar than ascorbic acid/Vitamin C, creating a strong memorization trap."
+fail_003,obscure,Sampling,Which vitamin is also known as cobalamin?,Vitamin B12,Vitamin C,Vitamin B12,True,True,1.2609526533973545,,"The biomedical term is less familiar than ascorbic acid/Vitamin C, creating a strong memorization trap."
+fail_003,obscure,DoLa,Which vitamin is also known as cobalamin?,Vitamin B12,Vitamin C,Vitamin B12,True,True,1.2609526533973545,2.0,"The biomedical term is less familiar than ascorbic acid/Vitamin C, creating a strong memorization trap."
+hard_001,obscure,Greedy,Which scientist introduced the word 'cell' after observing cork under a microscope?,Robert Hooke,Anton van Leeuwenhoek,Anton van Leeuwenhoek,False,False,0.8095342326943393,,Both scientists are strongly associated with microscopy; DoLa may not help if the answer and trap share the same factual neighborhood.
+hard_001,obscure,Beam Search,Which scientist introduced the word 'cell' after observing cork under a microscope?,Robert Hooke,Anton van Leeuwenhoek,Anton van Leeuwenhoek,False,False,0.8095342326943393,,Both scientists are strongly associated with microscopy; DoLa may not help if the answer and trap share the same factual neighborhood.
+hard_001,obscure,Sampling,Which scientist introduced the word 'cell' after observing cork under a microscope?,Robert Hooke,Anton van Leeuwenhoek,Anton van Leeuwenhoek,False,False,0.8095342326943393,,Both scientists are strongly associated with microscopy; DoLa may not help if the answer and trap share the same factual neighborhood.
+hard_001,obscure,DoLa,Which scientist introduced the word 'cell' after observing cork under a microscope?,Robert Hooke,Anton van Leeuwenhoek,Anton van Leeuwenhoek,False,False,0.8095342326943393,2.0,Both scientists are strongly associated with microscopy; DoLa may not help if the answer and trap share the same factual neighborhood.
+hard_002,ambiguous,Greedy,Which country has Sucre as its constitutional capital?,Bolivia,Peru,Peru,False,False,0.818126586847201,,The wording is precise but uncommon; a model may overuse neighboring-country priors.
+hard_002,ambiguous,Beam Search,Which country has Sucre as its constitutional capital?,Bolivia,Peru,Peru,False,False,0.818126586847201,,The wording is precise but uncommon; a model may overuse neighboring-country priors.
+hard_002,ambiguous,Sampling,Which country has Sucre as its constitutional capital?,Bolivia,Peru,Peru,False,False,0.818126586847201,,The wording is precise but uncommon; a model may overuse neighboring-country priors.
+hard_002,ambiguous,DoLa,Which country has Sucre as its constitutional capital?,Bolivia,Peru,Peru,False,False,0.818126586847201,2.0,The wording is precise but uncommon; a model may overuse neighboring-country priors.

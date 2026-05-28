@@ -1,0 +1,13 @@
+model_name: huggyllama/llama-7b
+dataset_name: null
+dataset_config: null
+split: validation
+max_examples: null
+seed: 42
+mature_layer: -1
+candidate_premature_layers: [0, 2, 4, 6, 8, 10, 12, 14]
+relative_top: 0.1
+contrast_alpha: 1.0
+temperature: 1.0
+device: cuda
+task_note: "Paper-aligned LLaMA-7B FACTOR/GSM8K lower bucket: even layers in [0, 16). Dataset loader still needs FACTOR-specific adapter."

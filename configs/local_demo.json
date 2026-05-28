@@ -1,0 +1,10 @@
+{
+  "seed": 42,
+  "layers": [0, 2, 4, 6, 8, 10, 12],
+  "mature_layer": 12,
+  "candidate_premature_layers": [2, 4, 6, 8, 10],
+  "temperatures": [0.1, 0.3, 0.7, 1.0],
+  "sampling_trials": 32,
+  "relative_top": 0.08,
+  "contrast_alpha": 1.0
+}

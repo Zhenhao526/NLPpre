@@ -1,0 +1,22 @@
+{
+  "platform": "Windows-10-10.0.19045-SP0",
+  "python": "3.13.12 | packaged by Anaconda, Inc. | (main, Feb 24 2026, 16:05:56) [MSC v.1942 64 bit (AMD64)]",
+  "python_executable": "C:\\Users\\zhenhao\\miniconda3\\python.exe",
+  "processor": "AMD64 Family 25 Model 33 Stepping 0, AuthenticAMD",
+  "machine": "AMD64",
+  "nvidia_smi_path": null,
+  "nvidia_smi": {
+    "returncode": 127,
+    "stdout": "",
+    "stderr": "command not found: nvidia-smi (2)"
+  },
+  "packages": {
+    "numpy": "2.4.4",
+    "pandas": "3.0.2",
+    "matplotlib": "3.10.8",
+    "torch": null,
+    "transformers": null,
+    "datasets": null,
+    "accelerate": null
+  }
+}

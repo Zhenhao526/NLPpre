@@ -1,0 +1,68 @@
+{
+  "platform": "Windows-10-10.0.19045-SP0",
+  "processor": "AMD64 Family 25 Model 33 Stepping 0, AuthenticAMD",
+  "cpu_count": 12,
+  "numpy_version": "2.4.4",
+  "matmul_benchmark": {
+    "matrix_size": 2048,
+    "best_seconds": 0.02532589999918855,
+    "median_seconds": 0.028677799999968556,
+    "estimated_fp32_gflops_best": 678.3517736605786,
+    "estimated_fp32_gflops_median": 599.0651020656688
+  },
+  "memory_benchmark": {
+    "size_mb": 1024,
+    "best_seconds": 0.04772339999999531,
+    "median_seconds": 0.04800429999977496,
+    "estimated_copy_gbps_best": 22.499273396281605,
+    "estimated_copy_gbps_median": 22.36761756769776
+  },
+  "truthfulqa_llama7b_cpu_estimate": {
+    "examples": 817,
+    "methods": 2,
+    "candidate_answers_per_example_range": [
+      8,
+      16
+    ],
+    "avg_tokens_per_candidate_range": [
+      8,
+      20
+    ],
+    "estimated_scored_tokens_range": [
+      104576,
+      522880
+    ],
+    "cpu_tokens_per_second_assumptions": {
+      "pytorch_fp32_or_fp16_emulated": [
+        0.05,
+        0.3
+      ],
+      "optimized_int4_llamacpp_reference": [
+        1.0,
+        4.0
+      ]
+    },
+    "estimates": {
+      "pytorch_fp32_or_fp16_emulated": {
+        "estimated_hours_range": [
+          96.82962962962964,
+          2904.8888888888887
+        ],
+        "estimated_days_range": [
+          4.034567901234568,
+          121.03703703703702
+        ]
+      },
+      "optimized_int4_llamacpp_reference": {
+        "estimated_hours_range": [
+          7.262222222222222,
+          145.24444444444444
+        ],
+        "estimated_days_range": [
+          0.3025925925925926,
+          6.051851851851851
+        ]
+      }
+    }
+  }
+}

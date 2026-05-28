@@ -1,0 +1,5 @@
+﻿method,Accuracy,Truthfulness,AvgEntropy,AvgPrematureLayer,Notes
+Beam Search,0.706,0.706,1.126,,top-2 final-layer beam
+DoLa,0.882,0.882,1.126,2.0,final logits minus selected premature logits
+Greedy,0.706,0.706,1.126,,final-layer argmax
+Sampling,0.412,0.412,1.126,,top-p sampling over final logits

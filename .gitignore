@@ -1,0 +1,37 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+third_party/
+*.log
+*.aux
+*.fls
+*.fdb_latexmk
+*.nav
+*.out
+*.snm
+*.toc
+*.xdv
+*.vrb
+
+# Paper PDFs / extracted full text / full translations should stay local unless
+# the repository is private and you intentionally want to archive them.
+DoLa_ICLR2024.pdf
+2309.03883v2.pdf
+DoLa_ICLR2024_中文翻译版.pdf
+DoLa_ICLR2024_中文翻译版.docx
+outputs/DoLa_ICLR2024.txt
+nlp-01-intro.pdf
+
+# Model weights and local caches
+models/
+checkpoints/
+*.bin
+*.safetensors
+*.pt
+*.pth
+.cache/

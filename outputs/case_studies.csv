@@ -1,0 +1,6 @@
+﻿case_type,id,category,question,answer,popular_trap,Greedy,DoLa,note
+DoLa success,fail_001,ambiguous,Which city hosted a world's fair in 1893 that introduced many visitors to electric lighting?,Chicago,Paris,Paris,Chicago,This deliberately hard example has a strong Paris/world exposition prior and weak fact signal.
+DoLa success,fail_002,obscure,The chemical symbol W refers to which element?,Tungsten,Tin,Tin,Tungsten,"W does not match the English name, so a surface-form model tends to fail."
+DoLa success,fail_003,obscure,Which vitamin is also known as cobalamin?,Vitamin B12,Vitamin C,Vitamin C,Vitamin B12,"The biomedical term is less familiar than ascorbic acid/Vitamin C, creating a strong memorization trap."
+DoLa failure,hard_001,obscure,Which scientist introduced the word 'cell' after observing cork under a microscope?,Robert Hooke,Anton van Leeuwenhoek,Anton van Leeuwenhoek,Anton van Leeuwenhoek,Both scientists are strongly associated with microscopy; DoLa may not help if the answer and trap share the same factual neighborhood.
+DoLa failure,hard_002,ambiguous,Which country has Sucre as its constitutional capital?,Bolivia,Peru,Peru,Peru,The wording is precise but uncommon; a model may overuse neighboring-country priors.

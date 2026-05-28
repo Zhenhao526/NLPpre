@@ -1,0 +1,13 @@
+model_name: huggyllama/llama-7b
+dataset_name: truthful_qa
+dataset_config: multiple_choice
+split: validation
+max_examples: 817
+seed: 42
+mature_layer: -1
+candidate_premature_layers: [16, 18, 20, 22, 24, 26, 28, 30]
+relative_top: 0.1
+contrast_alpha: 1.0
+temperature: 1.0
+device: cuda
+task_note: "Paper-aligned LLaMA-7B TruthfulQA-MC bucket: even layers in [16, 32), mature layer -1."
