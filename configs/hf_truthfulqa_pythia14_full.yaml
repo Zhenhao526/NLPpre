@@ -1,0 +1,13 @@
+model_name: EleutherAI/pythia-1.4b
+dataset_name: truthfulqa/truthful_qa
+dataset_config: multiple_choice
+split: validation
+max_examples: 817
+seed: 42
+mature_layer: -1
+candidate_premature_layers: [8, 10, 12, 14, 16, 18, 20, 22]
+relative_top: 0.1
+contrast_alpha: 1.0
+temperature: 1.0
+device: cuda
+task_note: "Colab 16GB fallback: Pythia-1.4B TruthfulQA-MC full validation."

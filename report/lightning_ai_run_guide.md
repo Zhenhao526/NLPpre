@@ -183,6 +183,44 @@ nvidia-smi > outputs/lightning_nvidia_smi.txt
 python scripts/collect_env.py
 ```
 
+## 8.5 Colab 16GB fallback: Pythia-1.4B
+
+如果免费 GPU 只有 T4 16GB，不建议直接跑 LLaMA-7B DoLa。可以先跑 Pythia-1.4B，作为真实 GPU 模型补充实验。
+
+100 条样本：
+
+```bash
+python scripts/run_hf_mc_eval.py \
+  --config configs/hf_truthfulqa_pythia14_100.yaml \
+  --method all \
+  --output outputs/colab_pythia14_100.csv
+```
+
+查看：
+
+```bash
+cat outputs/colab_pythia14_100_summary.csv
+```
+
+如果 100 条成功，再跑全量：
+
+```bash
+python scripts/run_hf_mc_eval.py \
+  --config configs/hf_truthfulqa_pythia14_full.yaml \
+  --method all \
+  --output outputs/colab_pythia14_full.csv
+```
+
+查看：
+
+```bash
+cat outputs/colab_pythia14_full_summary.csv
+```
+
+报告中可以写：
+
+> 由于 Colab 免费 GPU 为 16GB，无法稳定运行 LLaMA-7B DoLa；因此使用 Pythia-1.4B 作为低显存真实模型补充实验，并保留 LLaMA-7B 配置用于 24GB+ GPU 后续复现。
+
 ## 9. 结果下载
 
 在 Lightning 文件浏览器中下载：
