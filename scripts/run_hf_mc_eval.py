@@ -31,11 +31,18 @@ from truthfulqa_metrics import compute_mc_metrics
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "hf_truthfulqa.yaml"
 DEFAULT_OUTPUT = PROJECT_ROOT / "outputs" / "hf_mc_eval.csv"
+DATASET_ALIASES = {
+    "truthful_qa": "truthfulqa/truthful_qa",
+}
 
 
 def read_config(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def normalize_dataset_name(name: str) -> str:
+    return DATASET_ALIASES.get(name, name)
 
 
 def seed_everything(seed: int) -> None:
@@ -219,7 +226,8 @@ def main() -> None:
     candidate_layers = [normalize_layer_index(int(x), num_layers) for x in config["candidate_premature_layers"]]
     candidate_layers = [x for x in candidate_layers if 0 <= x < mature_layer]
 
-    dataset = load_dataset(config["dataset_name"], config["dataset_config"], split=config["split"])
+    dataset_name = normalize_dataset_name(str(config["dataset_name"]))
+    dataset = load_dataset(dataset_name, config["dataset_config"], split=config["split"])
     max_examples = config.get("max_examples")
     if max_examples:
         dataset = dataset.select(range(min(int(max_examples), len(dataset))))

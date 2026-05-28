@@ -226,6 +226,25 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa_smoke_gpt2.yaml 
 huggingface-cli login
 ```
 
+如果看到类似错误：
+
+```text
+Invalid HF URI 'hf://datasets/truthful_qa...'
+Repository id must be 'namespace/name'
+```
+
+说明环境中的 HuggingFace Hub / Datasets 版本要求数据集使用完整命名空间。请先拉取最新版仓库：
+
+```bash
+git pull
+```
+
+最新版配置已使用：
+
+```yaml
+dataset_name: truthfulqa/truthful_qa
+```
+
 ### 10.3 CUDA out of memory
 
 处理顺序：

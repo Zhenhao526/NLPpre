@@ -1,5 +1,5 @@
 model_name: gpt2
-dataset_name: truthful_qa
+dataset_name: truthfulqa/truthful_qa
 dataset_config: multiple_choice
 split: validation
 max_examples: 10

@@ -1,5 +1,5 @@
 model_name: huggyllama/llama-7b
-dataset_name: truthful_qa
+dataset_name: truthfulqa/truthful_qa
 dataset_config: multiple_choice
 split: validation
 max_examples: 817
