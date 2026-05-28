@@ -1,22 +1,22 @@
 {
-  "platform": "Windows-10-10.0.19045-SP0",
-  "python": "3.13.12 | packaged by Anaconda, Inc. | (main, Feb 24 2026, 16:05:56) [MSC v.1942 64 bit (AMD64)]",
-  "python_executable": "C:\\Users\\zhenhao\\miniconda3\\python.exe",
-  "processor": "AMD64 Family 25 Model 33 Stepping 0, AuthenticAMD",
-  "machine": "AMD64",
-  "nvidia_smi_path": null,
+  "platform": "Linux-6.8.0-111-generic-x86_64-with-glibc2.35",
+  "python": "3.13.12 | packaged by Anaconda, Inc. | (main, Feb 24 2026, 16:13:31) [GCC 14.3.0]",
+  "python_executable": "/home/xia/NLPpre/.venv/bin/python",
+  "processor": "x86_64",
+  "machine": "x86_64",
+  "nvidia_smi_path": "/usr/bin/nvidia-smi",
   "nvidia_smi": {
-    "returncode": 127,
-    "stdout": "",
-    "stderr": "command not found: nvidia-smi (2)"
+    "returncode": 0,
+    "stdout": "Thu May 28 21:38:14 2026       \n+---------------------------------------------------------------------------------------+\n| NVIDIA-SMI 535.309.01             Driver Version: 535.309.01   CUDA Version: 12.2     |\n|-----------------------------------------+----------------------+----------------------+\n| GPU  Name                 Persistence-M | Bus-Id        Disp.A | Volatile Uncorr. ECC |\n| Fan  Temp   Perf          Pwr:Usage/Cap |         Memory-Usage | GPU-Util  Compute M. |\n|                                         |                      |               MIG M. |\n|=========================================+======================+======================|\n|   0  NVIDIA GeForce RTX 3090        Off | 00000000:73:00.0 Off |                  N/A |\n| 30%   41C    P8              18W / 350W |     26MiB / 24576MiB |      0%      Default |\n|                                         |                      |                  N/A |\n+-----------------------------------------+----------------------+----------------------+\n|   1  NVIDIA GeForce RTX 3090        Off | 00000000:D5:00.0 Off |                  N/A |\n| 30%   52C    P8              19W / 350W |     10MiB / 24576MiB |      0%      Default |\n|                                         |                      |                  N/A |\n+-----------------------------------------+----------------------+----------------------+\n                                                                                         \n+---------------------------------------------------------------------------------------+\n| Processes:                                                                            |\n|  GPU   GI   CI        PID   Type   Process name                            GPU Memory |\n|        ID   ID                                                             Usage      |\n|=======================================================================================|\n|    0   N/A  N/A      1824      G   /usr/lib/xorg/Xorg                            9MiB |\n|    0   N/A  N/A      2063      G   /usr/bin/gnome-shell                          8MiB |\n|    1   N/A  N/A      1824      G   /usr/lib/xorg/Xorg                            4MiB |\n+---------------------------------------------------------------------------------------+",
+    "stderr": ""
   },
   "packages": {
-    "numpy": "2.4.4",
-    "pandas": "3.0.2",
-    "matplotlib": "3.10.8",
-    "torch": null,
-    "transformers": null,
-    "datasets": null,
-    "accelerate": null
+    "numpy": "2.4.6",
+    "pandas": "3.0.3",
+    "matplotlib": "3.10.9",
+    "torch": "2.5.1+cu121",
+    "transformers": "5.9.0",
+    "datasets": "4.8.5",
+    "accelerate": "1.13.0"
   }
 }
