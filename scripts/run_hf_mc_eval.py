@@ -58,11 +58,38 @@ def normalize_layer_index(layer: int, num_layers: int) -> int:
     return num_layers if layer == -1 else layer
 
 
+def get_num_transformer_layers(model: AutoModelForCausalLM) -> int:
+    layer_paths = [
+        ("model", "layers"),
+        ("gpt_neox", "layers"),
+        ("transformer", "h"),
+    ]
+    for path in layer_paths:
+        module: Any = model
+        for attr in path:
+            if not hasattr(module, attr):
+                break
+            module = getattr(module, attr)
+        else:
+            return len(module)
+
+    for attr in ("num_hidden_layers", "n_layer", "num_layers"):
+        value = getattr(model.config, attr, None)
+        if value is not None:
+            return int(value)
+
+    raise ValueError(f"Cannot infer transformer layer count for {type(model).__name__}.")
+
+
+def logits_from_hidden(model: AutoModelForCausalLM, hidden: torch.Tensor) -> torch.Tensor:
+    output_embeddings = model.get_output_embeddings()
+    if output_embeddings is None:
+        raise ValueError(f"Model {type(model).__name__} has no output embedding layer.")
+    return output_embeddings(hidden)
+
+
 def log_softmax_from_hidden(model: AutoModelForCausalLM, hidden: torch.Tensor) -> torch.Tensor:
-    if hasattr(model, "lm_head"):
-        logits = model.lm_head(hidden)
-    else:
-        logits = model.get_output_embeddings()(hidden)
+    logits = logits_from_hidden(model, hidden)
     return torch.log_softmax(logits.float(), dim=-1)
 
 
@@ -138,8 +165,8 @@ def score_choice(
         raise ValueError(f"Unknown method: {method}")
 
     premature_layer = select_premature_layer(model, hidden_states, candidate_layers, mature_layer, token_positions)
-    final_logits = model.lm_head(hidden_states[mature_layer][:, token_positions, :]).float()
-    premature_logits = model.lm_head(hidden_states[premature_layer][:, token_positions, :]).float()
+    final_logits = logits_from_hidden(model, hidden_states[mature_layer][:, token_positions, :]).float()
+    premature_logits = logits_from_hidden(model, hidden_states[premature_layer][:, token_positions, :]).float()
     # TruthfulQA-MC in the paper scores answer likelihoods with contrastive
     # logits directly rather than applying post-softmax layer probabilities.
     contrastive_logits = final_logits - contrast_alpha * premature_logits
@@ -221,10 +248,14 @@ def main() -> None:
         model.to(device)
     model.eval()
 
-    num_layers = len(model.model.layers) if hasattr(model, "model") and hasattr(model.model, "layers") else len(model.transformer.h)
+    num_layers = get_num_transformer_layers(model)
     mature_layer = normalize_layer_index(int(config["mature_layer"]), num_layers)
     candidate_layers = [normalize_layer_index(int(x), num_layers) for x in config["candidate_premature_layers"]]
     candidate_layers = [x for x in candidate_layers if 0 <= x < mature_layer]
+    if not 0 <= mature_layer <= num_layers:
+        raise ValueError(f"mature_layer={mature_layer} is outside hidden-state range 0..{num_layers}.")
+    if not candidate_layers:
+        raise ValueError("No valid candidate_premature_layers remain after layer normalization.")
 
     dataset_name = normalize_dataset_name(str(config["dataset_name"]))
     dataset = load_dataset(dataset_name, config["dataset_config"], split=config["split"])
