@@ -35,9 +35,10 @@ p_DoLa = softmax(z_DoLa / T)
 
 - 本机环境：Python 3.13，无 `nvidia-smi`，未安装 CUDA 版 PyTorch。
 - 本机演示数据：英文事实问答 + 中文事实问答 + 困难混淆样本，共 17 条。
+- Colab GPU 补充实验：T4 16GB，Pythia-1.4B，TruthfulQA-MC validation 817 条。
 - Baselines：Greedy、Beam Search、Sampling。
 - 参数分析：Layer selection、Temperature。
-- 真实模型入口：`scripts/run_hf_mc_eval.py` 支持 TruthfulQA。
+- 真实模型入口：`scripts/run_hf_mc_eval.py` 支持 TruthfulQA 官方 MC1/MC2/MC3。
 
 ## 5. 结果（2 分钟）
 
@@ -49,6 +50,15 @@ p_DoLa = softmax(z_DoLa / T)
 | Beam Search | 0.706 | 0.706 |
 | Sampling | 0.412 | 0.412 |
 | DoLa | 0.882 | 0.882 |
+
+Colab Pythia-1.4B 全量 TruthfulQA-MC：
+
+| Method | MC1 | MC2 | MC3 | n |
+|---|---:|---:|---:|---:|
+| vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
+| DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
+
+结论：DoLa 在 Pythia-1.4B 上仅小幅提升 MC2，MC1/MC3 下降；该结果证明真实 GPU 流程打通，但不等价于 LLaMA 主结果复现。
 
 ## 6. 分析（3 分钟）
 
@@ -62,4 +72,4 @@ p_DoLa = softmax(z_DoLa / T)
 
 - DoLa 优点：无需训练、可插入推理、对事实性有帮助。
 - DoLa 局限：增加计算开销；依赖层选择；不能创造模型不知道的知识。
-- 后续方向：中文事实性 benchmark、RAG + DoLa、效率和 KV cache 分析。
+- 后续方向：24GB+ GPU 上补 LLaMA-7B、中文事实性 benchmark、RAG + DoLa、效率和 KV cache 分析。

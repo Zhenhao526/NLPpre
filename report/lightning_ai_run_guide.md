@@ -217,6 +217,15 @@ python scripts/run_hf_mc_eval.py \
 cat outputs/colab_pythia14_full_summary.csv
 ```
 
+本项目已完成一次 Colab T4 16GB 全量运行，结果为：
+
+| Model | Method | MC1 | MC2 | MC3 | n |
+|---|---|---:|---:|---:|---:|
+| Pythia-1.4B | vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
+| Pythia-1.4B | DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
+
+观察：DoLa 在 MC2 上小幅提升，但 MC1/MC3 下降。报告中应把它定位为低显存真实模型补充实验，而不是论文 LLaMA 主结果复现。
+
 报告中可以写：
 
 > 由于 Colab 免费 GPU 为 16GB，无法稳定运行 LLaMA-7B DoLa；因此使用 Pythia-1.4B 作为低显存真实模型补充实验，并保留 LLaMA-7B 配置用于 24GB+ GPU 后续复现。
@@ -228,6 +237,8 @@ cat outputs/colab_pythia14_full_summary.csv
 ```text
 outputs/lightning_smoke_gpt2_summary.csv
 outputs/lightning_llama7b_truthfulqa_summary.csv
+outputs/colab_pythia14_full_summary.csv
+outputs/colab_pythia14_full.csv
 outputs/lightning_nvidia_smi.txt
 outputs/env_info.json
 ```

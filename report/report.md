@@ -79,7 +79,7 @@ Transformer forward with hidden states
                           greedy / sampling decoding
 ```
 
-本项目在本机演示脚本中实现了同样的数据流：构造每层 logits，选择 premature layer，计算 contrastive logits，再进行解码。真实模型脚本 `scripts/run_hf_mc_eval.py` 使用 HuggingFace 模型输出的 hidden states 和 `lm_head` 计算各层 logits。
+本项目在本机演示脚本中实现了同样的数据流：构造每层 logits，选择 premature layer，计算 contrastive logits，再进行解码。真实模型脚本 `scripts/run_hf_mc_eval.py` 使用 HuggingFace 模型输出的 hidden states 和模型输出 embedding head 计算各层 logits。
 
 ### 3.3 Candidate Layer Selection
 
@@ -110,7 +110,7 @@ Output: next token y
 
 ### 4.1 Environment
 
-当前机器环境：
+本机环境：
 
 - Python: 3.13.12
 - Python path: `C:\Users\zhenhao\miniconda3\python.exe`
@@ -118,7 +118,7 @@ Output: next token y
 - Installed packages: `pandas`、`matplotlib`、`numpy`
 - Missing for real LLM inference: `torch`、`transformers`、`datasets`、`accelerate`
 
-因此本报告中的已运行结果来自本机可复现实验。真实模型复现实验入口已提供，建议在 Python 3.10/3.11、PyTorch 2.0+、CUDA 11.8、24GB+ GPU 环境中运行。
+因此本机可控实验仍用于解释 DoLa 的机制和案例。真实模型部分已经在 Google Colab T4 16GB 上完成 Pythia-1.4B + TruthfulQA-MC 全量补充实验；LLaMA-7B 主实验仍建议在 Python 3.10/3.11、PyTorch 2.0+、CUDA 11.8、24GB+ GPU 环境中运行。
 
 ### 4.2 Dataset
 
@@ -197,6 +197,19 @@ Output: next token y
 
 温度升高带来更高 diversity，但 factuality 下降。DoLa+Sampling 在每个 temperature 下都优于普通 Sampling，说明 layer contrast 与采样策略可以叠加，但高温仍会削弱事实性。
 
+### 5.4 Colab GPU TruthfulQA-MC 补充实验
+
+为验证真实 HuggingFace 模型评测链路，本项目在 Google Colab T4 16GB GPU 环境下运行了 Pythia-1.4B 的 TruthfulQA multiple-choice 完整验证集。该实验使用 `scripts/run_hf_mc_eval.py`，输出官方 MC1/MC2/MC3 指标。运行配置见 `configs/hf_truthfulqa_pythia14_full.yaml`，Colab notebook 见 `notebooks/colab_pythia_truthfulqa.ipynb`。
+
+| Model | Method | MC1 | MC2 | MC3 | n |
+|---|---|---:|---:|---:|---:|
+| Pythia-1.4B | vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
+| Pythia-1.4B | DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
+
+该实验耗时约 5 分 28 秒完成 817 条样本评测，不含首次模型下载时间。结果显示，在 Pythia-1.4B 上 DoLa 的收益不稳定：MC2 从 0.3609 小幅提升到 0.3672，但 MC1 从 0.2081 降至 0.1628，MC3 从 0.1879 降至 0.1311。一个合理解释是，小模型层间语义分化和事实知识储备弱于论文主实验使用的 LLaMA 系列模型，因此 layer contrast 不一定稳定提升所有指标。
+
+因此该结果不应被表述为“复现论文主结果”，而应定位为“低显存真实模型补充实验”：它证明了数据加载、hidden states 提取、DoLa contrastive scoring、官方 MC 指标计算和 Colab GPU 运行流程已经打通。
+
 ## 6. Analysis
 
 ### 6.1 Why DoLa Helps
@@ -225,13 +238,13 @@ DoLa 的提升主要来自对“流畅但错误”的高频先验进行惩罚。
 - 计算开销增加：需要保留并投影中间层 hidden states。
 - 层选择敏感：不同模型和任务的最佳 candidate layers 可能不同。
 - 对知识缺失无能为力：如果模型没有学到事实，DoLa 不能替代 RAG 或检索证据。
-- 本机实验是教学型模拟，不等价于 7B 模型真实结果；正式复现需要在 GPU 环境跑 TruthfulQA/FACTOR。
+- 本机实验是教学型模拟；Colab Pythia-1.4B 是低显存真实模型验证；二者都不等价于论文中 LLaMA-7B/13B/33B 的主结果。
 
 ## 7. Conclusion
 
-本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展和案例分析。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。
+本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和真实 GPU 补充实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在 Colab Pythia-1.4B 全量 TruthfulQA-MC 上，DoLa 小幅提升 MC2，但降低 MC1/MC3，说明小模型设置下 DoLa 收益并不稳定。
 
-DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和真实 GPU 环境下的 TruthfulQA 复现。
+DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：在 24GB+ GPU 上补 LLaMA-7B TruthfulQA/FACTOR、中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和效率/显存开销评估。
 
 ## Appendix A. Run Commands
 
@@ -250,8 +263,16 @@ conda activate dola-nlp
 python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method all
 ```
 
-官方 DoLa 设置对齐材料见 `report/official_alignment_plan.md`。当前已完成 LLaMA-7B TruthfulQA-MC 的 layer bucket 对齐：使用论文中的高层候选区间 `[16, 32)` 的偶数层，并保留 final layer 作为 mature layer。由于当前无 GPU，真实跑分和 MC1/MC2/MC3 官方指标仍待补充。
-目前已补充 MC1/MC2/MC3 指标计算逻辑，说明见 `report/truthfulqa_mc_metrics.md`；真实数值仍需 GPU 运行后填入。
+Colab Pythia-1.4B 全量实验：
+
+```bash
+python scripts/run_hf_mc_eval.py \
+  --config configs/hf_truthfulqa_pythia14_full.yaml \
+  --method all \
+  --output outputs/colab_pythia14_full.csv
+```
+
+官方 DoLa 设置对齐材料见 `report/official_alignment_plan.md`。当前已完成 LLaMA-7B TruthfulQA-MC 的 layer bucket 对齐：使用论文中的高层候选区间 `[16, 32)` 的偶数层，并保留 final layer 作为 mature layer。MC1/MC2/MC3 指标计算逻辑说明见 `report/truthfulqa_mc_metrics.md`；Pythia-1.4B 全量结果已经补充，LLaMA-7B 真实跑分仍待 24GB+ GPU。
 
 官方代码：
 
@@ -269,6 +290,8 @@ pip install -r requirements.txt
 - `outputs/local_temperature_sweep.csv`
 - `outputs/case_studies.csv`
 - `outputs/env_info.json`
+- `outputs/colab_pythia14_100_summary.csv`
+- `outputs/colab_pythia14_full_summary.csv`
 - `figures/baseline_vs_dola.png`
 - `figures/layer_selection_sweep.png`
 - `figures/temperature_sweep.png`

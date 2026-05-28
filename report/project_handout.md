@@ -189,22 +189,24 @@ DoLa 不需要额外弱模型，而是在同一个模型内部做：
 - `figures/temperature_sweep.png`
 - `figures/layer_probability_trace.png`
 
-### 5.2 真实模型入口
+### 5.2 真实模型评测
 
 脚本：`scripts/run_hf_mc_eval.py`
 
 作用：
 
 - 在 GPU 环境中加载 HuggingFace causal LM。
-- 使用 hidden states 和 `lm_head` 计算各层 logits。
+- 使用 hidden states 和模型输出 embedding head 计算各层 logits。
 - 支持 TruthfulQA 多选评测。
+- 输出官方 MC1/MC2/MC3 指标。
 
 运行条件：
 
 - Python 3.10/3.11。
 - PyTorch + CUDA。
 - Transformers、datasets、accelerate。
-- 最好有 24GB 以上显存。
+- Pythia-1.4B 可在 Colab T4 16GB 上运行。
+- LLaMA-7B 建议 24GB 以上显存。
 
 官方实验设置对齐材料：
 
@@ -212,7 +214,7 @@ DoLa 不需要额外弱模型，而是在同一个模型内部做：
 report/official_alignment_plan.md
 ```
 
-该文档已经把论文中的 LLaMA layer bucket、TruthfulQA/FACTOR/GSM8K 设置、APC 参数、结果记录模板和当前项目配置逐项对齐。即使暂时没有 GPU，也可以把这部分作为“官方复现实验准备工作”写进报告。
+该文档已经把论文中的 LLaMA layer bucket、TruthfulQA/FACTOR/GSM8K 设置、APC 参数、结果记录模板和当前项目配置逐项对齐。当前已完成 Pythia-1.4B 低显存真实模型验证，LLaMA-7B 主实验仍待 24GB+ GPU。
 
 ## 6. 实验设置
 
@@ -284,9 +286,33 @@ temperature sweep = [0.1, 0.3, 0.7, 1.0]
 
 讲述时必须补一句：
 
-> 这里的结果来自本机可复现实验，重点验证机制和分析流程；后续需要在 GPU 上跑 TruthfulQA 才能给出真实 LLM benchmark 结论。
+> 这里的结果来自本机可复现实验，重点验证机制和分析流程；真实 GPU 部分已经补充 Pythia-1.4B + TruthfulQA-MC，但它不是论文 LLaMA 主结果。
 
-### 7.2 Layer Selection
+### 7.2 Colab Pythia-1.4B TruthfulQA-MC
+
+运行环境：
+
+- Google Colab T4 16GB。
+- `EleutherAI/pythia-1.4b`。
+- TruthfulQA-MC validation 全量 817 条。
+- 脚本：`scripts/run_hf_mc_eval.py`。
+- Notebook：`notebooks/colab_pythia_truthfulqa.ipynb`。
+
+结果：
+
+| Model | Method | MC1 | MC2 | MC3 | n |
+|---|---|---:|---:|---:|---:|
+| Pythia-1.4B | vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
+| Pythia-1.4B | DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
+
+解读：
+
+- 真实 HuggingFace 模型评测链路已经跑通。
+- DoLa 在 MC2 上小幅提升，从 0.3609 到 0.3672。
+- DoLa 在 MC1 和 MC3 上下降，说明 Pythia-1.4B 小模型上收益不稳定。
+- 该实验应定位为低显存补充实验，不等价于论文 LLaMA-7B/13B/33B 主结果复现。
+
+### 7.3 Layer Selection
 
 当前 layer sweep 结果：
 
@@ -309,7 +335,7 @@ temperature sweep = [0.1, 0.3, 0.7, 1.0]
 
 > 因为当前数据集规模很小，accuracy 是离散指标，不够敏感；但 answer probability 曲线仍显示层间差异。后续 GPU 实验中应扩大样本量，并同时报告 logits/probability 级别指标。
 
-### 7.3 Temperature
+### 7.4 Temperature
 
 | Temperature | Sampling Accuracy | DoLa+Sampling Accuracy |
 |---:|---:|---:|
@@ -434,10 +460,11 @@ DoLa 容易失败的情况：
 - 说明当前环境限制。
 - 解释本机实验定位。
 - 展示 baseline 表格。
+- 展示 Colab Pythia-1.4B TruthfulQA-MC 结果。
 
 必须说：
 
-> 当前结果是可复现实验，不是 7B 真模型最终结果；项目已提供 GPU TruthfulQA 入口，下一步会补真实 benchmark。
+> 本机实验解释机制，Colab Pythia-1.4B 证明真实模型链路已打通；但论文主设置仍需 LLaMA-7B 及更大 GPU。
 
 ### 9.4 8-11 分钟：讲分析
 
@@ -455,7 +482,7 @@ DoLa 容易失败的情况：
 - DoLa 是轻量 decoding 方法。
 - 能缓解一部分 hallucination。
 - 不能替代 RAG 或外部验证。
-- 下一步 GPU 验证是最高优先级。
+- 下一步是 24GB+ GPU 上补 LLaMA-7B 主实验。
 
 ## 10. 常见答辩问题与回答
 
@@ -477,7 +504,7 @@ DoLa 不会创造新知识。如果正确答案在模型所有层中都没有足
 
 ### Q5：当前结果能否说明 DoLa 在真实 LLM 上有效？
 
-当前结果只能说明项目实现了 DoLa 机制，并在可控本机实验中观察到预期趋势。真实 LLM 有效性需要 GPU 上运行 TruthfulQA、FACTOR 等 benchmark。本项目已经提供了真实模型评测脚本。
+当前结果已经包含一个真实 LLM 补充实验：Pythia-1.4B 在 Colab T4 16GB 上完成了 TruthfulQA-MC 全量评测。但这个模型小于论文主实验中的 LLaMA 系列，因此只能说明真实模型流程跑通，以及 DoLa 在小模型上收益不稳定。要判断论文主结论，还需要 LLaMA-7B/13B 和 FACTOR 等 benchmark。
 
 ### Q6：为什么 Sampling 比 Greedy 差？
 
@@ -491,15 +518,16 @@ Sampling 引入随机性，可能选择非最大概率选项。temperature 越�
 
 当前不足：
 
-1. 没有在 GPU 上跑真实模型。
+1. 尚未在 24GB+ GPU 上跑 LLaMA-7B 主实验。
 2. 本机数据规模小，accuracy 指标离散。
 3. Beam Search 在多选任务中只是近似实现。
-4. 尚未与 RAG、CoT、self-consistency 做真实对比。
+4. Pythia-1.4B 结果显示 DoLa 收益不稳定，需要进一步分析层选择和模型规模影响。
+5. 尚未与 RAG、CoT、self-consistency 做真实对比。
 
 最优先的改进：
 
-1. 在 GPU 上跑 TruthfulQA。
-2. 与官方 DoLa 参数和结果对齐。
+1. 在 24GB+ GPU 上跑 LLaMA-7B TruthfulQA-MC。
+2. 补 FACTOR，并与官方 DoLa 参数和结果对齐。
 3. 扩大中文事实性数据集。
 4. 做 logits 级案例可视化。
 5. 记录 latency、显存和 tokens/s。
@@ -508,4 +536,4 @@ Sampling 引入随机性，可能选择非最大概率选项。temperature 越�
 
 DoLa 的核心贡献是提出一种非常轻量的 factuality enhancement 方法：不用训练、不用检索，只利用模型内部不同层之间的预测差异。它适合缓解一部分由高频先验和表面模式导致的 hallucination，但不能解决知识缺失、事实过期和复杂实体混淆。
 
-本项目目前完成了从方法理解到可运行实验、图表、报告和 PPT 的完整闭环。后续只要补上 GPU 上的 TruthfulQA/FACTOR 真实验证，就能从“课程复现实验”进一步提升为更完整的论文复现项目。
+本项目目前完成了从方法理解到可运行实验、图表、报告、PPT 和 Colab 真实模型补充实验的闭环。后续只要补上 LLaMA-7B/FACTOR 的 24GB+ GPU 主实验，就能从“课程复现实验”进一步提升为更完整的论文复现项目。

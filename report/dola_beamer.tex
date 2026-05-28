@@ -23,7 +23,7 @@
 \setbeamertemplate{footline}[frame number]
 
 \title[DoLa 事实性增强]{基于 DoLa 解码策略的大语言模型事实性增强方法复现与分析}
-\subtitle{当前本机可复现实验结果汇报}
+\subtitle{本机复现实验与 Colab 真实模型补充结果}
 \author{自然语言处理课程大作业}
 \institute{NLPpre}
 \date{\today}
@@ -74,10 +74,10 @@
     \begin{column}{0.48\textwidth}
       \begin{alertblock}{当前限制}
         \begin{itemize}
-          \item 当前机器未检测到 \code{nvidia-smi}
-          \item 未安装 \code{torch/transformers}
-          \item 本次结果是本机可复现实验，不是 7B GPU 真模型结果
-          \item 已提供 HuggingFace/TruthfulQA 真实模型入口
+          \item 本机未检测到 \code{nvidia-smi}
+          \item Colab T4 16GB 已跑通 Pythia-1.4B
+          \item 已完成 TruthfulQA-MC 全量 817 条
+          \item LLaMA-7B 仍需 24GB+ GPU
         \end{itemize}
       \end{alertblock}
     \end{column}
@@ -146,7 +146,7 @@
   \vspace{0.5em}
   \begin{block}{本项目实现}
     本机脚本使用透明 layer/logits 模拟复现上述流程；
-    GPU 脚本使用 HuggingFace 模型 hidden states 和 \code{lm\_head} 计算真实层 logits。
+    GPU 脚本使用 HuggingFace 模型 hidden states 和输出 embedding head 计算真实层 logits。
   \end{block}
 \end{frame}
 
@@ -201,8 +201,8 @@
   \end{table}
 
   \begin{alertblock}{说明}
-    因环境限制，本 PPT 使用当前可复现实验结果；
-    后续 GPU 验证将用 \code{scripts/run\_hf\_mc\_eval.py} 跑 TruthfulQA。
+    本机实验用于解释机制；Colab 实验用于验证真实 HuggingFace 模型评测链路。
+    LLaMA-7B 主结果仍需更大显存环境补跑。
   \end{alertblock}
 \end{frame}
 
@@ -234,6 +234,32 @@
   \begin{block}{观察}
     DoLa 在当前实验中比 Greedy/Beam 高 17.6 个百分点；Sampling 随机性更强，事实性最低。
   \end{block}
+\end{frame}
+
+\begin{frame}{Colab 真实模型补充实验}
+  \small
+  \begin{table}
+    \centering
+    \begin{tabular}{llcccc}
+      \toprule
+      Model & Method & MC1 & MC2 & MC3 & n \\
+      \midrule
+      Pythia-1.4B & vanilla & \textbf{0.2081} & 0.3609 & \textbf{0.1879} & 817 \\
+      Pythia-1.4B & DoLa & 0.1628 & \textbf{0.3672} & 0.1311 & 817 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.4em}
+  \begin{block}{运行条件}
+    Google Colab T4 16GB；TruthfulQA-MC validation；完整 817 条；
+    评测耗时约 5 分 28 秒，不含首次模型下载。
+  \end{block}
+
+  \begin{alertblock}{解释}
+    DoLa 在 Pythia-1.4B 上仅小幅提升 MC2，但降低 MC1/MC3。
+    因此该结果证明真实 GPU 流程打通，不等价于论文 LLaMA 主结果复现。
+  \end{alertblock}
 \end{frame}
 
 \begin{frame}{Layer Selection 分析}
@@ -331,7 +357,8 @@
 \begin{frame}{结论}
   \begin{itemize}
     \item DoLa 通过同一模型内部的 layer contrast 改变 decoding 分布。
-    \item 当前本机实验中，DoLa 的 accuracy/truthfulness 从 0.706 提升到 0.882。
+    \item 本机实验中，DoLa 的 accuracy/truthfulness 从 0.706 提升到 0.882。
+    \item Colab Pythia-1.4B 全量评测已打通，DoLa 小幅提升 MC2 但降低 MC1/MC3。
     \item Temperature 分析显示：随机性增强会降低 factuality，DoLa 可部分缓解。
     \item 失败案例说明：DoLa 不能创造模型没有掌握的事实知识。
   \end{itemize}
@@ -344,8 +371,8 @@
 
 \begin{frame}{下一步提升方向}
   \begin{enumerate}
-    \item GPU 上跑真实模型与 TruthfulQA，补真实日志和 GPU 使用截图。
-    \item 与官方 DoLa 结果对齐：模型、split、layer 参数、relative top。
+    \item 在 24GB+ GPU 上补 LLaMA-7B TruthfulQA-MC 和 FACTOR。
+    \item 与官方 DoLa 结果对齐：模型、split、layer 参数、relative top、prompt。
     \item 加强 logits 可视化：成功/失败样例的 answer/trap logits 曲线。
     \item 扩展中文事实性数据集，覆盖历史、地理、文学和科学常识。
     \item 增加效率分析：latency、tokens/s、显存、candidate layers 数量影响。
@@ -358,6 +385,8 @@
     \item 本机实验：\code{scripts/run\_local\_dola\_demo.py}
     \item 真实模型入口：\code{scripts/run\_hf\_mc\_eval.py}
     \item 实验结果：\code{outputs/local\_results\_summary.csv}
+    \item Colab 结果：\code{outputs/colab\_pythia14\_full\_summary.csv}
+    \item Colab Notebook：\code{notebooks/colab\_pythia\_truthfulqa.ipynb}
     \item 案例分析：\code{outputs/case\_studies.csv}
     \item 图表目录：\code{figures/}
     \item 报告：\code{report/report.md}

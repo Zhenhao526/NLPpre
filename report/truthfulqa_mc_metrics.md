@@ -131,7 +131,15 @@ TruthfulQA MC metric smoke tests passed.
 - mature layer = final layer
 - relative top = 0.1
 
-待 GPU 补充：
+已完成的低显存 GPU 补充：
+
+- Colab T4 16GB
+- `EleutherAI/pythia-1.4b`
+- TruthfulQA-MC validation 全量 817 条
+- vanilla: MC1 0.2081, MC2 0.3609, MC3 0.1879
+- DoLa: MC1 0.1628, MC2 0.3672, MC3 0.1311
+
+仍待 24GB+ GPU 补充：
 
 - 真实 LLaMA-7B 跑分
 - 与论文 Table 1 中 TruthfulQA-MC 的数值对比

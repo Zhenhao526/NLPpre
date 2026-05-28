@@ -7,7 +7,7 @@
 
 各位老师同学好，我汇报的题目是“基于 DoLa 解码策略的大语言模型事实性增强方法复现与分析”。
 
-这个工作围绕 ICLR 2024 的 DoLa 方法展开。DoLa 的核心特点是：不重新训练模型，而是在推理阶段利用不同层之间的 logits 差异来改善事实性。由于当前本机没有 GPU 环境，这次汇报的结果主要来自本机可复现实验，同时我也保留了后续在 GPU 上跑 TruthfulQA 的真实模型入口。
+这个工作围绕 ICLR 2024 的 DoLa 方法展开。DoLa 的核心特点是：不重新训练模型，而是在推理阶段利用不同层之间的 logits 差异来改善事实性。目前项目包含两部分结果：一部分是本机可复现实验，用来解释 DoLa 的机制；另一部分是在 Colab T4 16GB 上跑通的 Pythia-1.4B + TruthfulQA-MC 真实模型补充实验。
 
 ## 第 2 页：汇报结构
 
@@ -31,7 +31,7 @@
 
 目前已经完成了 DoLa decoding pipeline 的实现，并对比了 Greedy、Beam Search、Sampling 和 DoLa 四种方法。同时做了 layer selection 分析、temperature 分析，以及成功和失败案例分析。报告、图表、脚本和 Beamer PPT 都已经生成。
 
-限制也需要明确说明：当前机器没有检测到 `nvidia-smi`，也没有安装 `torch` 和 `transformers`，所以现在的结果不是 7B 模型在 GPU 上的真实推理结果，而是一个本机可运行、可解释的复现实验。项目里已经提供了 `scripts/run_hf_mc_eval.py`，后续可以在 GPU 环境上跑 TruthfulQA。
+限制也需要明确说明：本机没有 NVIDIA GPU，所以本机结果不是 7B 模型真实 benchmark。但我已经在 Colab T4 16GB 上完成了 Pythia-1.4B 的 TruthfulQA-MC 全量 817 条评测。LLaMA-7B 主实验仍需要 24GB 以上 GPU。
 
 ## 第 5 页：DoLa 核心思想
 
@@ -65,7 +65,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 之后选择一个 premature layer，再计算 `z_DoLa = z_M - alpha z_l`。最后用 greedy 或 sampling 从 contrastive logits 中生成输出。
 
-本项目实现了两套入口：本机脚本用透明的 layer/logits 模拟这个流程，便于在没有 GPU 的环境下复现和分析；真实模型脚本则调用 HuggingFace 模型的 hidden states 和 `lm_head`，用于后续 GPU 上跑 TruthfulQA。
+本项目实现了两套入口：本机脚本用透明的 layer/logits 模拟这个流程，便于在没有 GPU 的环境下复现和分析；真实模型脚本则调用 HuggingFace 模型的 hidden states 和输出 embedding head，用于在 GPU 上跑 TruthfulQA。
 
 ## 第 8 页：实验设置
 
@@ -83,7 +83,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 系统是 Windows 10，Python 版本是 3.13.12。当前没有检测到 `nvidia-smi`，说明没有可用的 NVIDIA GPU 命令行环境。已经安装了 `numpy`、`pandas` 和 `matplotlib`，但没有安装真实大模型推理需要的 `torch`、`transformers` 和 `datasets`。
 
-所以当前结果来自本机脚本。真实模型部分需要换到 Python 3.10 或 3.11，加 PyTorch 和 CUDA，再运行项目里的 HuggingFace 评测脚本。
+所以本机结果来自本机脚本。真实模型部分我换到 Colab T4 16GB 后已经完成了 Pythia-1.4B 补充实验；如果要跑论文主设置中的 LLaMA-7B，仍需要更大显存环境。
 
 ## 第 10 页：Baseline 对比结果
 
@@ -93,9 +93,19 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 可以看到，DoLa 相比 Greedy 和 Beam Search 有明显提升。Sampling 表现较差，是因为随机性引入了更多错误选项。
 
-这里需要强调，这个结果说明的是：在当前可控实验中，layer contrast 确实能够削弱一部分错误先验，提高正确答案排名。它还不是 GPU 上真实 7B 模型的最终 benchmark 结果。
+这里需要强调，这个结果说明的是：在当前可控实验中，layer contrast 确实能够削弱一部分错误先验，提高正确答案排名。它主要用于解释机制，不能单独代表真实大模型 benchmark。
 
-## 第 11 页：Layer Selection 分析
+## 第 11 页：Colab 真实模型补充实验
+
+这一页是新增的真实 GPU 补充实验。
+
+我在 Google Colab 的 T4 16GB GPU 上运行了 Pythia-1.4B，对 TruthfulQA-MC validation 完整 817 条样本计算官方 MC1、MC2、MC3 指标。vanilla 的结果是 MC1 0.2081、MC2 0.3609、MC3 0.1879；DoLa 的结果是 MC1 0.1628、MC2 0.3672、MC3 0.1311。
+
+这个结果需要谨慎解释：DoLa 在 MC2 上有小幅提升，但 MC1 和 MC3 下降。这说明在 Pythia-1.4B 这种较小模型上，DoLa 的收益并不稳定。可能原因是小模型的事实知识储备和层间语义分化不足，导致 layer contrast 不能像 LLaMA 系列大模型上那样稳定改善事实性。
+
+因此这部分的定位不是复现论文主结果，而是证明真实模型评测链路已经打通，包括数据集下载、hidden states 提取、contrastive scoring 和官方指标输出。
+
+## 第 12 页：Layer Selection 分析
 
 这一页分析 premature layer 的影响。
 
@@ -105,7 +115,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 从方法理解上看，layer selection 很关键。层太早可能语义不足，层太晚可能和最终层太像。真实模型上应该继续观察 JS divergence、answer logits 和 trap logits 随层数的变化。
 
-## 第 12 页：Temperature 分析
+## 第 13 页：Temperature 分析
 
 这一页展示 temperature sweep。
 
@@ -115,7 +125,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contrast 调整了 token 分布，再进行采样。但如果 temperature 太高，随机性还是会削弱 factuality。
 
-## 第 13 页：DoLa 成功案例
+## 第 14 页：DoLa 成功案例
 
 这一页列了三个成功案例。
 
@@ -127,7 +137,7 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 这些案例的共同点是：错误答案大多来自高频实体、表面联想或常见事实模板。DoLa 的作用就是削弱 premature layer 中这类陷阱先验。
 
-## 第 14 页：DoLa 失败案例
+## 第 15 页：DoLa 失败案例
 
 这一页是失败案例。
 
@@ -137,21 +147,21 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 所以 DoLa 的边界很清楚：它是重排模型内部预测分布的方法，不是检索系统。如果模型不知道事实，或者多个候选项在内部表示上都很强，就需要 RAG、验证器或外部知识。
 
-## 第 15 页：结论
+## 第 16 页：结论
 
 总结来看，DoLa 通过同一模型内部的 layer contrast 改变 decoding 分布。
 
-在当前本机实验中，DoLa 把 accuracy 和 truthfulness 从 0.706 提升到 0.882。Temperature 分析说明，随机性越强 factuality 越容易下降，但 DoLa 可以部分缓解。
+在本机实验中，DoLa 把 accuracy 和 truthfulness 从 0.706 提升到 0.882。Colab Pythia-1.4B 全量评测说明真实模型流程已经跑通，但 DoLa 在小模型上只提升 MC2，MC1 和 MC3 下降。Temperature 分析说明，随机性越强 factuality 越容易下降，但 DoLa 可以部分缓解。
 
 同时，失败案例也说明了它的局限：DoLa 不能创造模型没有掌握的知识，也不能完全解决复杂实体混淆。
 
 一句话总结就是：DoLa 是一种低成本抑制“流畅但错误”生成倾向的方法，但它不是 factuality 问题的完整解法。
 
-## 第 16 页：下一步提升方向
+## 第 17 页：下一步提升方向
 
-下一步最重要的是在 GPU 上跑真实模型和 TruthfulQA，补充真实日志、GPU 使用情况和官方 benchmark 对齐结果。
+下一步最重要的是在 24GB 以上 GPU 上补跑 LLaMA-7B 的 TruthfulQA-MC 和 FACTOR，得到更接近论文主设置的结果。
 
-第二步是和官方 DoLa 结果对齐，包括模型、数据 split、layer 参数和 relative top 设置。
+第二步是和官方 DoLa 结果对齐，包括模型、数据 split、layer 参数、relative top 和 prompt/tokenization 设置。
 
 第三步是加强 logits 可视化，尤其是成功和失败样例中 answer/trap logits 随层变化的曲线。
 
@@ -159,16 +169,16 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 最后还可以做效率分析，比如 latency、tokens/s、显存占用，以及 candidate layers 数量对速度的影响。如果时间允许，可以再和 RAG、CoT 或 self-consistency 做扩展对比。
 
-## 第 17 页：代码与输出
+## 第 18 页：代码与输出
 
 这一页列出项目文件。
 
-本机实验脚本是 `scripts/run_local_dola_demo.py`；真实模型入口是 `scripts/run_hf_mc_eval.py`。实验结果在 `outputs/local_results_summary.csv`，案例分析在 `outputs/case_studies.csv`，图表都在 `figures/` 目录。
+本机实验脚本是 `scripts/run_local_dola_demo.py`；真实模型入口是 `scripts/run_hf_mc_eval.py`。本机实验结果在 `outputs/local_results_summary.csv`，Colab Pythia-1.4B 汇总结果在 `outputs/colab_pythia14_full_summary.csv`，对应 notebook 是 `notebooks/colab_pythia_truthfulqa.ipynb`。案例分析在 `outputs/case_studies.csv`，图表都在 `figures/` 目录。
 
 报告是 `report/report.md`，当前 PPT 是 `report/dola_beamer.pdf`。论文参考是 ICLR 2024 的 DoLa，链接在页面底部。
 
-## 第 18 页：结束页
+## 第 19 页：结束页
 
 我的汇报到这里结束，谢谢大家。
 
-如果有问题，可以从三个角度讨论：第一，DoLa 的 layer contrast 为什么有效；第二，当前本机实验和真实 GPU benchmark 的差异；第三，后续如何把 DoLa 和 RAG 或中文事实性评测结合起来。
+如果有问题，可以从三个角度讨论：第一，DoLa 的 layer contrast 为什么有效；第二，Pythia-1.4B 补充实验和论文 LLaMA 主结果的差异；第三，后续如何把 DoLa 和 RAG 或中文事实性评测结合起来。

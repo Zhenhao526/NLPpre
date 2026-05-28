@@ -3,7 +3,7 @@
 本项目根据 `DoLa_大作业任务书_完整版.md` 搭建。目录包含两类实验：
 
 - 本机可复现实验：`scripts/run_local_dola_demo.py`，无需 GPU 和 Transformers，用透明的 layer/logits 模拟复现 DoLa 的核心对比思想，并生成 baseline、layer selection、temperature、案例分析和图表。
-- 真实模型入口：`scripts/run_hf_mc_eval.py`，用于在 Python 3.10/3.11 + PyTorch + CUDA 环境中运行 HuggingFace causal LM 的 TruthfulQA 多选评测。
+- 真实模型评测：`scripts/run_hf_mc_eval.py`，用于在 Python 3.10/3.11 + PyTorch + CUDA 环境中运行 HuggingFace causal LM 的 TruthfulQA 多选评测；已在 Colab T4 16GB 上完成 Pythia-1.4B 全量 TruthfulQA-MC 补充实验。
 
 论文与官方资源：
 
@@ -27,7 +27,6 @@
 │   ├── layer_probability_trace.png
 │   ├── layer_selection_sweep.png
 │   └── temperature_sweep.png
-├── outputs/
 ├── report/
 │   ├── report.md
 │   └── slides_outline.md
@@ -39,7 +38,7 @@
 
 ## 环境安装
 
-当前机器实测为 Python 3.13，未检测到 `nvidia-smi`，且未安装 `torch/transformers`。因此本仓库默认先跑本机可复现实验；真实 7B 模型建议使用单卡 24GB 以上 GPU。
+当前本机实测为 Python 3.13，未检测到 `nvidia-smi`，且未安装 `torch/transformers`。因此本机默认先跑可复现实验；真实模型补充实验可在 Colab T4 16GB 上运行 Pythia-1.4B，真实 7B 模型建议使用单卡 24GB 以上 GPU。
 
 推荐真实复现实验环境：
 
@@ -92,6 +91,33 @@ MC1/MC2/MC3 指标说明见 `report/truthfulqa_mc_metrics.md`，本机可用 `py
 
 默认模型为 `huggyllama/llama-7b`。如果使用 gated LLaMA/Llama-2 权重，需要先登录 HuggingFace 并接受模型许可。显存不足时可改用更小的 causal LM，但报告中应说明模型差异。
 
+### Colab 16GB 补充实验
+
+Colab T4 16GB 可以直接运行：
+
+```python
+%cd /content
+!git clone https://github.com/Zhenhao526/NLPpre.git
+%cd /content/NLPpre
+!python -m pip install -U -q transformers datasets accelerate sentencepiece protobuf pandas pyyaml tqdm
+!python scripts/run_hf_mc_eval.py \
+  --config configs/hf_truthfulqa_pythia14_full.yaml \
+  --method all \
+  --output outputs/colab_pythia14_full.csv
+!cat outputs/colab_pythia14_full_summary.csv
+```
+
+也可以打开 `notebooks/colab_pythia_truthfulqa.ipynb` 按单元格运行。
+
+已完成的 Pythia-1.4B 全量 TruthfulQA-MC 结果：
+
+| Model | Method | MC1 | MC2 | MC3 | n |
+|---|---|---:|---:|---:|---:|
+| Pythia-1.4B | vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
+| Pythia-1.4B | DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
+
+该结果说明：在低显存、小模型设置下，DoLa 对 MC2 有小幅提升，但 MC1/MC3 下降；因此它适合作为“真实 GPU 流程已打通”的补充实验，不等价于论文中 LLaMA-7B/13B/33B 的主结果。
+
 官方代码复现可参考：
 
 ```powershell
@@ -122,3 +148,6 @@ z_DoLa = z_M - alpha * z_l
 ## 局限
 
 本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式提交时，如有 GPU，应补跑 `scripts/run_hf_mc_eval.py` 或官方 DoLa 仓库，并把真实日志、GPU 使用截图和输出结果放入 `outputs/` 与报告附录。
+├── notebooks/
+│   └── colab_pythia_truthfulqa.ipynb
+├── outputs/
