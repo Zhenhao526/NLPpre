@@ -1,0 +1,13 @@
+model_name: gpt2
+dataset_name: truthful_qa
+dataset_config: multiple_choice
+split: validation
+max_examples: 10
+seed: 42
+mature_layer: -1
+candidate_premature_layers: [2, 4, 6, 8, 10]
+relative_top: 0.1
+contrast_alpha: 1.0
+temperature: 1.0
+device: cuda
+task_note: "Lightning AI smoke test. Uses small GPT-2 to validate code, dataset loading, MC1/MC2/MC3, and DoLa pipeline before running LLaMA-7B."
