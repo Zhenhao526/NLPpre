@@ -225,6 +225,8 @@ def main() -> None:
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--method", choices=["vanilla", "dola", "all"], default="all")
+    parser.add_argument("--start-index", type=int, default=0, help="Start index after max_examples truncation, inclusive.")
+    parser.add_argument("--end-index", type=int, default=None, help="End index after max_examples truncation, exclusive.")
     args = parser.parse_args()
 
     config = read_config(args.config)
@@ -262,10 +264,17 @@ def main() -> None:
     max_examples = config.get("max_examples")
     if max_examples:
         dataset = dataset.select(range(min(int(max_examples), len(dataset))))
+    dataset_size = len(dataset)
+    start_index = max(0, int(args.start_index))
+    end_index = dataset_size if args.end_index is None else min(int(args.end_index), dataset_size)
+    if not 0 <= start_index <= end_index <= dataset_size:
+        raise ValueError(f"Invalid shard range [{start_index}, {end_index}) for dataset size {dataset_size}.")
+    dataset = dataset.select(range(start_index, end_index))
 
     methods = ["vanilla", "dola"] if args.method == "all" else [args.method]
     rows: list[dict[str, Any]] = []
-    for idx, example in enumerate(tqdm(dataset, desc="Evaluating")):
+    for local_idx, example in enumerate(tqdm(dataset, desc=f"Evaluating [{start_index}, {end_index})")):
+        idx = start_index + local_idx
         question, mc1_targets, mc2_targets = get_truthfulqa_targets(example)
         mc1_choices = list(mc1_targets["choices"])
         mc1_labels = [int(x) for x in mc1_targets["labels"]]
