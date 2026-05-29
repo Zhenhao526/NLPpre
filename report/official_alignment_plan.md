@@ -1,6 +1,6 @@
 # 官方 DoLa 设置对齐计划
 
-目标：在暂时没有 GPU 的情况下，先把论文/官方代码的实验设置、参数命名、评测指标和本项目实现逐项对齐。等 GPU 可用后，只需要按本文档执行命令并填表。
+目标：把论文/官方代码的实验设置、参数命名、评测指标和本项目实现逐项对齐，并记录当前已经完成的官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 复现实验。
 
 ## 1. 为什么现在可以做第二步
 
@@ -104,7 +104,7 @@ relative_top: 0.1
 configs/hf_factor_llama7b.yaml
 ```
 
-该配置只完成 layer bucket 对齐；FACTOR 数据集 loader 还需要单独补 adapter。
+该配置保留为自写 HuggingFace 入口的 FACTOR/GSM8K layer bucket 模板。当前官方 FACTOR 复现已优先使用官方 DoLa 仓库 `factor_eval.py` 完成，不再单独手写 FACTOR loader。
 
 ## 4. 论文指标对齐
 
@@ -125,7 +125,7 @@ configs/hf_factor_llama7b.yaml
 
 当前阶段可在报告中写：
 
-> 本项目已用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 主复现实验；自写 HuggingFace 入口保留为实现诊断和补充实验。
+> 本项目已用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 和 FACTOR News/Wiki 主复现实验；自写 HuggingFace 入口保留为实现诊断和补充实验。
 
 ### 4.2 FACTOR
 
@@ -134,7 +134,20 @@ configs/hf_factor_llama7b.yaml
 - News accuracy
 - Wiki accuracy
 
-当前项目不再单独手写 FACTOR loader，优先调用官方 DoLa `factor_eval.py` 复现实验。脚本模板见 `scripts/run_official_dola_factor.sh`。
+当前项目不再单独手写 FACTOR loader，优先调用官方 DoLa `factor_eval.py` 复现实验。脚本见 `scripts/run_official_dola_factor.sh`。已完成结果如下：
+
+| Dataset | Method | Accuracy | n |
+|---|---|---:|---:|
+| News | baseline | 0.5859 | 1036 |
+| News | DoLa | 0.6149 | 1036 |
+| Wiki | baseline | 0.5862 | 2994 |
+| Wiki | DoLa | 0.6219 | 2994 |
+
+输出文件：
+
+```text
+outputs/official_dola_factor/factor_summary.csv
+```
 
 ### 4.3 Open-ended TruthfulQA
 
@@ -159,7 +172,7 @@ configs/hf_factor_llama7b.yaml
 | TruthfulQA-MC post-softmax | 论文发现不使用 post-softmax 更好 | 脚本用 contrastive logits 直接评分 | 对齐 |
 | MC1/MC2/MC3 | 官方指标 | 已实现均值汇总与逐题记录 | 对齐 |
 | LLaMA 权重 | LLaMA family | 默认 `huggyllama/llama-7b` | 近似，需要说明 |
-| GPU 环境 | V100, fp16, batch size 1 | 双 RTX 3090，官方 TruthfulQA 已完成 | 部分对齐 |
+| GPU 环境 | V100, fp16, batch size 1 | 双 RTX 3090，官方 TruthfulQA 与 FACTOR 已完成 | 部分对齐 |
 
 ## 6. GPU 可用后的命令模板
 
@@ -208,6 +221,15 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method do
 | LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC2 | 0.6540 | official DoLa |
 | LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC3 | 0.3289 | official DoLa |
 
+当前官方 FACTOR 结果：
+
+| Model | Dataset | Method | Candidate Layers | Metric | Score | Notes |
+|---|---|---|---|---|---:|---|
+| LLaMA-7B | FACTOR News | vanilla | none | accuracy | 0.5859 | official DoLa |
+| LLaMA-7B | FACTOR News | DoLa | `[0,16]` even with final 32 | accuracy | 0.6149 | official DoLa |
+| LLaMA-7B | FACTOR Wiki | vanilla | none | accuracy | 0.5862 | official DoLa |
+| LLaMA-7B | FACTOR Wiki | DoLa | `[0,16]` even with final 32 | accuracy | 0.6219 | official DoLa |
+
 环境记录：
 
 | 项目 | 值 |
@@ -241,7 +263,7 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method do
 
 报告中推荐表述：
 
-> 本项目优先对齐了 DoLa 的核心机制、candidate layer bucket、mature layer、relative top、TruthfulQA-MC contrastive likelihood 和 MC1/MC2/MC3 指标实现。当前官方 DoLa LLaMA-7B TruthfulQA-MC 已完成，结果显示 DoLa 在三个指标上均优于 baseline；自写 HuggingFace 结果与官方结果不一致时，应从 prompt、tokenization、relative-top filtering 和 early-exit scoring 细节解释。
+> 本项目优先对齐了 DoLa 的核心机制、candidate layer bucket、mature layer、relative top、TruthfulQA-MC contrastive likelihood 和 MC1/MC2/MC3 指标实现。当前官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 已完成，结果显示 DoLa 在 TruthfulQA 三个指标和 FACTOR News/Wiki accuracy 上均优于 baseline；自写 HuggingFace 结果与官方结果不一致时，应从 prompt、tokenization、relative-top filtering 和 early-exit scoring 细节解释。
 
 ## 9. 当前已完成的第二步成果
 
@@ -252,13 +274,14 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method do
 - 新增 `configs/hf_factor_llama7b.yaml` 作为 FACTOR/GSM8K 低层 bucket 模板。
 - 调整 `scripts/run_hf_mc_eval.py` 方法命名为 `vanilla` / `dola`，避免把多选似然评分误称为 greedy/beam/sampling。
 - 完成官方 DoLa LLaMA-7B TruthfulQA-MC 主复现实验。
-- 明确当前未完成项：FACTOR Wiki/News、官方/自写实现差异分析。
+- 完成官方 DoLa LLaMA-7B FACTOR News/Wiki 主复现实验。
+- 明确当前未完成项：官方/自写实现差异分析、中文事实性 benchmark、效率分析。
 
 ## 10. 下一步建议
 
 下一步建议：
 
-1. 运行 `scripts/run_official_dola_factor.sh` 补 FACTOR Wiki/News。
-2. 做官方 DoLa 与自写 HuggingFace TruthfulQA 实现差异分析。
-3. 补 layer/logits 可视化脚本模板。
-4. 将 FACTOR 结果整合进 `report/report.md` 和 PPT。
+1. 做官方 DoLa 与自写 HuggingFace TruthfulQA 实现差异分析。
+2. 补 layer/logits 可视化脚本模板。
+3. 扩展中文事实性 benchmark。
+4. 补效率、显存和 candidate layer 数量影响分析。

@@ -3,7 +3,7 @@
 本项目根据 `DoLa_大作业任务书_完整版.md` 搭建。目录包含两类实验：
 
 - 本机可复现实验：`scripts/run_local_dola_demo.py`，无需 GPU 和 Transformers，用透明的 layer/logits 模拟复现 DoLa 的核心对比思想，并生成 baseline、layer selection、temperature、案例分析和图表。
-- 真实模型评测：已使用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 主实验复现；同时保留 `scripts/run_hf_mc_eval.py` 用于 HuggingFace causal LM 的补充评测和诊断。
+- 真实模型评测：已使用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 与 FACTOR News/Wiki 主实验复现；同时保留 `scripts/run_hf_mc_eval.py` 用于 HuggingFace causal LM 的补充评测和诊断。
 
 论文与官方资源：
 
@@ -81,7 +81,7 @@ python scripts/collect_env.py
 | Sampling | 0.412 | 0.412 | top-p sampling over final logits |
 | DoLa | 0.882 | 0.882 | final logits minus selected premature logits |
 
-## 真实模型 TruthfulQA 复现
+## 真实模型官方复现
 
 官方 DoLa LLaMA-7B TruthfulQA-MC 主结果：
 
@@ -92,7 +92,18 @@ python scripts/collect_env.py
 
 该结果由官方 DoLa 仓库 `tfqa_mc_eval.py` 在本地下载的 `huggyllama/llama-7b` 上得到。DoLa 在 MC1/MC2/MC3 上均显著高于 baseline，因此可作为本项目的主复现实验结果。
 
-配置文件：`configs/hf_truthfulqa.yaml`。
+官方 DoLa LLaMA-7B FACTOR 结果：
+
+| Dataset | Method | Accuracy | n |
+|---|---|---:|---:|
+| News | baseline | 0.5859 | 1036 |
+| News | DoLa | 0.6149 | 1036 |
+| Wiki | baseline | 0.5862 | 2994 |
+| Wiki | DoLa | 0.6219 | 2994 |
+
+FACTOR News/Wiki 上 DoLa 同样高于 baseline，进一步支持 DoLa 在真实 factuality benchmark 上的有效性。
+
+TruthfulQA 自写补充评测配置文件：`configs/hf_truthfulqa.yaml`。官方 FACTOR 复现脚本为 `scripts/run_official_dola_factor.sh`。
 
 ```powershell
 python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method all
@@ -159,4 +170,4 @@ z_DoLa = z_M - alpha * z_l
 
 ## 局限
 
-本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式结果以官方 DoLa LLaMA-7B TruthfulQA-MC 复现实验为主；Pythia-1.4B 和自写 HuggingFace 评测作为补充与实现差异分析。
+本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式结果以官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 复现实验为主；Pythia-1.4B 和自写 HuggingFace 评测作为补充与实现差异分析。

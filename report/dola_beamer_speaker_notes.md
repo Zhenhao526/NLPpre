@@ -7,13 +7,13 @@
 
 各位老师同学好，我汇报的题目是“基于 DoLa 解码策略的大语言模型事实性增强方法复现与分析”。
 
-这个工作围绕 ICLR 2024 的 DoLa 方法展开。DoLa 的核心特点是：不重新训练模型，而是在推理阶段利用不同层之间的 logits 差异来改善事实性。目前项目包含三部分结果：第一是本机可复现实验，用来解释 DoLa 的机制；第二是在 Colab T4 16GB 上跑通的 Pythia-1.4B 补充实验；第三是在双 RTX 3090 服务器上使用官方 DoLa 仓库完成的 LLaMA-7B TruthfulQA-MC 主实验复现。
+这个工作围绕 ICLR 2024 的 DoLa 方法展开。DoLa 的核心特点是：不重新训练模型，而是在推理阶段利用不同层之间的 logits 差异来改善事实性。目前项目包含三部分结果：第一是本机可复现实验，用来解释 DoLa 的机制；第二是在 Colab T4 16GB 上跑通的 Pythia-1.4B 补充实验；第三是在双 RTX 3090 服务器上使用官方 DoLa 仓库完成的 LLaMA-7B TruthfulQA-MC 和 FACTOR News/Wiki 复现。
 
 ## 第 2 页：汇报结构
 
 这次汇报分成五个部分。
 
-第一部分介绍 hallucination 问题和项目目标；第二部分介绍 DoLa 的核心方法和公式；第三部分说明当前实验设置；第四部分展示 baseline、layer selection 和 temperature 结果；最后是案例分析、结论和下一步工作。
+第一部分介绍 hallucination 问题和项目目标；第二部分介绍 DoLa 的核心方法和公式；第三部分说明当前实验设置；第四部分展示 baseline、官方 benchmark、layer selection 和 temperature 结果；最后是案例分析、结论和下一步工作。
 
 ## 第 3 页：问题背景：Hallucination
 
@@ -31,7 +31,7 @@
 
 目前已经完成了 DoLa decoding pipeline 的实现，并对比了 Greedy、Beam Search、Sampling 和 DoLa 四种方法。同时做了 layer selection 分析、temperature 分析，以及成功和失败案例分析。报告、图表、脚本和 Beamer PPT 都已经生成。
 
-限制也需要明确说明：本机没有 NVIDIA GPU，所以本机结果用于解释机制，不作为 7B benchmark。真实主结果来自服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC；Pythia-1.4B 是低显存补充实验，用于观察小模型上的稳定性。
+限制也需要明确说明：本机没有 NVIDIA GPU，所以本机结果用于解释机制，不作为 7B benchmark。真实主结果来自服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC 和 FACTOR News/Wiki；Pythia-1.4B 是低显存补充实验，用于观察小模型上的稳定性。
 
 ## 第 5 页：DoLa 核心思想
 
@@ -83,7 +83,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 系统是 Windows 10，Python 版本是 3.13.12。当前没有检测到 `nvidia-smi`，说明没有可用的 NVIDIA GPU 命令行环境。已经安装了 `numpy`、`pandas` 和 `matplotlib`，但没有安装真实大模型推理需要的 `torch`、`transformers` 和 `datasets`。
 
-所以本机结果来自本机脚本。真实模型部分已经完成两条线：Colab T4 16GB 上的 Pythia-1.4B 补充实验，以及双 RTX 3090 服务器上的官方 DoLa LLaMA-7B 主实验。
+所以本机结果来自本机脚本。真实模型部分已经完成两条线：Colab T4 16GB 上的 Pythia-1.4B 补充实验，以及双 RTX 3090 服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC 和 FACTOR 主实验。
 
 ## 第 10 页：Baseline 对比结果
 
@@ -105,7 +105,17 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 因此这部分可以作为项目的主复现实验结果。此前自写 HuggingFace 版本中 DoLa 低于 vanilla，说明问题更可能来自 prompt、tokenization、relative-top filtering 或 scoring 细节，而不是 DoLa 方法本身无效。
 
-## 第 12 页：Colab 真实模型补充实验
+## 第 12 页：官方 LLaMA-7B FACTOR 结果
+
+这一页是 TruthfulQA 之外的第二个官方事实性 benchmark。
+
+我继续使用官方 DoLa 仓库的 `factor_eval.py`，模型仍然是本地下载的 `huggyllama/llama-7b`。和 TruthfulQA 不同，FACTOR 按论文设置使用低层 candidate bucket，early-exit layers 是 `0,2,4,6,8,10,12,14,32`，其中 32 是 mature layer。
+
+结果上，News 数据集 baseline accuracy 是 0.5859，DoLa 是 0.6149；Wiki 数据集 baseline accuracy 是 0.5862，DoLa 是 0.6219。两个子集上 DoLa 都高于 baseline。
+
+这说明 DoLa 的收益不只出现在 TruthfulQA-MC，也能迁移到 FACTOR 这种事实性判别任务。结合上一页 TruthfulQA-MC 的结果，可以更有力地说明官方实现下 DoLa 对 factuality benchmark 是有效的。
+
+## 第 13 页：Colab 真实模型补充实验
 
 这一页是新增的真实 GPU 补充实验。
 
@@ -115,7 +125,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 因此这部分的定位不是主结果，而是小模型和低显存环境下的补充实验。它说明真实 HuggingFace 评测链路已经打通，但也显示 DoLa 在小模型上收益可能不稳定。
 
-## 第 13 页：Layer Selection 分析
+## 第 14 页：Layer Selection 分析
 
 这一页分析 premature layer 的影响。
 
@@ -125,7 +135,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 从方法理解上看，layer selection 很关键。层太早可能语义不足，层太晚可能和最终层太像。真实模型上应该继续观察 JS divergence、answer logits 和 trap logits 随层数的变化。
 
-## 第 14 页：Temperature 分析
+## 第 15 页：Temperature 分析
 
 这一页展示 temperature sweep。
 
@@ -135,7 +145,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contrast 调整了 token 分布，再进行采样。但如果 temperature 太高，随机性还是会削弱 factuality。
 
-## 第 15 页：DoLa 成功案例
+## 第 16 页：DoLa 成功案例
 
 这一页列了三个成功案例。
 
@@ -147,7 +157,7 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 这些案例的共同点是：错误答案大多来自高频实体、表面联想或常见事实模板。DoLa 的作用就是削弱 premature layer 中这类陷阱先验。
 
-## 第 16 页：DoLa 失败案例
+## 第 17 页：DoLa 失败案例
 
 这一页是失败案例。
 
@@ -157,21 +167,21 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 所以 DoLa 的边界很清楚：它是重排模型内部预测分布的方法，不是检索系统。如果模型不知道事实，或者多个候选项在内部表示上都很强，就需要 RAG、验证器或外部知识。
 
-## 第 17 页：结论
+## 第 18 页：结论
 
 总结来看，DoLa 通过同一模型内部的 layer contrast 改变 decoding 分布。
 
-在本机实验中，DoLa 把 accuracy 和 truthfulness 从 0.706 提升到 0.882。官方 LLaMA-7B TruthfulQA-MC 实验中，DoLa 在 MC1、MC2、MC3 上都显著高于 baseline，验证了论文主结论。Colab Pythia-1.4B 全量评测说明小模型上收益不稳定，DoLa 只提升 MC2，MC1 和 MC3 下降。
+在本机实验中，DoLa 把 accuracy 和 truthfulness 从 0.706 提升到 0.882。官方 LLaMA-7B TruthfulQA-MC 实验中，DoLa 在 MC1、MC2、MC3 上都显著高于 baseline；官方 FACTOR 实验中，DoLa 在 News 和 Wiki accuracy 上也都高于 baseline。这两组官方 benchmark 共同验证了论文主结论。Colab Pythia-1.4B 全量评测说明小模型上收益不稳定，DoLa 只提升 MC2，MC1 和 MC3 下降。
 
 同时，失败案例也说明了它的局限：DoLa 不能创造模型没有掌握的知识，也不能完全解决复杂实体混淆。
 
 一句话总结就是：DoLa 是一种低成本抑制“流畅但错误”生成倾向的方法，但它不是 factuality 问题的完整解法。
 
-## 第 18 页：下一步提升方向
+## 第 19 页：下一步提升方向
 
-下一步最重要的是补官方 FACTOR Wiki 和 News 评测，形成 TruthfulQA-MC 之外的第二个 benchmark。
+官方 FACTOR Wiki 和 News 已经完成，所以下一步最重要的是分析自写 HuggingFace 实现和官方 DoLa 实现的差异。
 
-第二步是分析自写 HuggingFace 实现和官方 DoLa 实现的差异，包括 prompt、tokenization、relative top filtering 和 early-exit scoring。
+这部分包括 prompt、tokenization、relative top filtering 和 early-exit scoring。因为目前官方实现下 DoLa 明显优于 baseline，而自写 HF 诊断版曾出现 DoLa 低于 vanilla，所以差异分析能解释结果分歧。
 
 第三步是加强 logits 可视化，尤其是成功和失败样例中 answer/trap logits 随层变化的曲线。
 
@@ -179,16 +189,16 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 最后还可以做效率分析，比如 latency、tokens/s、显存占用，以及 candidate layers 数量对速度的影响。如果时间允许，可以再和 RAG、CoT 或 self-consistency 做扩展对比。
 
-## 第 19 页：代码与输出
+## 第 20 页：代码与输出
 
 这一页列出项目文件。
 
-本机实验脚本是 `scripts/run_local_dola_demo.py`；自写真实模型入口是 `scripts/run_hf_mc_eval.py`；官方 TruthfulQA 复现入口是 `scripts/run_official_dola_truthfulqa.sh`。官方主结果在 `outputs/official_dola_truthfulqa_summary.csv`，Colab Pythia-1.4B 汇总结果在 `outputs/colab_pythia14_full_summary.csv`，对应 notebook 是 `notebooks/colab_pythia_truthfulqa.ipynb`。
+本机实验脚本是 `scripts/run_local_dola_demo.py`；自写真实模型入口是 `scripts/run_hf_mc_eval.py`；官方 TruthfulQA 复现入口是 `scripts/run_official_dola_truthfulqa.sh`，官方 FACTOR 复现入口是 `scripts/run_official_dola_factor.sh`。官方 TruthfulQA 主结果在 `outputs/official_dola_truthfulqa_summary.csv`，官方 FACTOR 结果在 `outputs/official_dola_factor/factor_summary.csv`，Colab Pythia-1.4B 汇总结果在 `outputs/colab_pythia14_full_summary.csv`，对应 notebook 是 `notebooks/colab_pythia_truthfulqa.ipynb`。
 
 报告是 `report/report.md`，当前 PPT 是 `report/dola_beamer.pdf`。论文参考是 ICLR 2024 的 DoLa，链接在页面底部。
 
-## 第 20 页：结束页
+## 第 21 页：结束页
 
 我的汇报到这里结束，谢谢大家。
 
-如果有问题，可以从三个角度讨论：第一，DoLa 的 layer contrast 为什么有效；第二，官方 LLaMA-7B 主结果和 Pythia-1.4B 补充实验的差异；第三，后续如何补 FACTOR、RAG 或中文事实性评测。
+如果有问题，可以从三个角度讨论：第一，DoLa 的 layer contrast 为什么有效；第二，官方 LLaMA-7B 主结果和 Pythia-1.4B 补充实验的差异；第三，后续如何做官方/自写实现差异分析、RAG 或中文事实性评测。

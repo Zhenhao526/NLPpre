@@ -118,7 +118,7 @@ Output: next token y
 - Installed packages: `pandas`、`matplotlib`、`numpy`
 - Missing for real LLM inference: `torch`、`transformers`、`datasets`、`accelerate`
 
-因此本机可控实验仍用于解释 DoLa 的机制和案例。真实模型部分已经完成两类实验：在 Google Colab T4 16GB 上完成 Pythia-1.4B + TruthfulQA-MC 全量补充实验；在双 RTX 3090 服务器上使用官方 DoLa 仓库完成 LLaMA-7B + TruthfulQA-MC 主实验复现。
+因此本机可控实验仍用于解释 DoLa 的机制和案例。真实模型部分已经完成三类实验：在 Google Colab T4 16GB 上完成 Pythia-1.4B + TruthfulQA-MC 全量补充实验；在双 RTX 3090 服务器上使用官方 DoLa 仓库完成 LLaMA-7B + TruthfulQA-MC 主实验复现；继续完成 LLaMA-7B + FACTOR News/Wiki 官方复现。
 
 ### 4.2 Dataset
 
@@ -227,6 +227,25 @@ early-exit-layers = 16,18,20,22,24,26,28,30,32
 
 该结果显示，官方实现下 DoLa 在 MC1、MC2 和 MC3 上均显著高于 baseline，方向与论文结论一致。因此，本项目的主复现实验已经完成；此前自写 HuggingFace 版本中 DoLa 低于 vanilla，说明差异更可能来自 prompt、tokenization、relative-top filtering、early-exit scoring 或官方数据预处理细节，而不是 DoLa 方法本身无效。
 
+### 5.6 Official DoLa LLaMA-7B FACTOR
+
+为补充 TruthfulQA 之外的事实性 benchmark，本项目继续运行官方 DoLa 仓库的 `factor_eval.py`，分别评测 FACTOR News 和 FACTOR Wiki。根据论文设置，FACTOR 使用低层 candidate bucket：
+
+```text
+early-exit-layers = 0,2,4,6,8,10,12,14,32
+```
+
+其中 `32` 作为 mature layer，`0` 到 `14` 的偶数层作为 candidate premature layers。结果如下：
+
+| Dataset | Method | Accuracy | n |
+|---|---|---:|---:|
+| News | baseline | 0.5859 | 1036 |
+| News | DoLa | 0.6149 | 1036 |
+| Wiki | baseline | 0.5862 | 2994 |
+| Wiki | DoLa | 0.6219 | 2994 |
+
+FACTOR 结果显示，DoLa 在 News 和 Wiki 上均优于 baseline：News accuracy 从 0.5859 提升到 0.6149，Wiki accuracy 从 0.5862 提升到 0.6219。这说明 DoLa 的收益不仅出现在 TruthfulQA-MC，也能迁移到 FACTOR 事实性判别任务。
+
 ## 6. Analysis
 
 ### 6.1 Why DoLa Helps
@@ -255,13 +274,13 @@ DoLa 的提升主要来自对“流畅但错误”的高频先验进行惩罚。
 - 计算开销增加：需要保留并投影中间层 hidden states。
 - 层选择敏感：不同模型和任务的最佳 candidate layers 可能不同。
 - 对知识缺失无能为力：如果模型没有学到事实，DoLa 不能替代 RAG 或检索证据。
-- 本机实验是教学型模拟；Colab Pythia-1.4B 是低显存真实模型验证；官方 DoLa LLaMA-7B TruthfulQA-MC 是当前最接近论文设置的主复现实验。仍需注意 `huggyllama/llama-7b` 与论文原始 LLaMA 权重可能存在实现和许可来源差异。
+- 本机实验是教学型模拟；Colab Pythia-1.4B 是低显存真实模型验证；官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 是当前最接近论文设置的主复现实验。仍需注意 `huggyllama/llama-7b` 与论文原始 LLaMA 权重可能存在实现和许可来源差异。
 
 ## 7. Conclusion
 
-本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和真实 GPU 复现实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在官方 DoLa LLaMA-7B TruthfulQA-MC 上，DoLa 将 MC1 从 0.2392 提升到 0.3278，将 MC2 从 0.3925 提升到 0.6540，将 MC3 从 0.1807 提升到 0.3289，验证了论文主结论。在 Colab Pythia-1.4B 全量 TruthfulQA-MC 上，DoLa 小幅提升 MC2，但降低 MC1/MC3，说明小模型设置下 DoLa 收益并不稳定。
+本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和真实 GPU 复现实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在官方 DoLa LLaMA-7B TruthfulQA-MC 上，DoLa 将 MC1 从 0.2392 提升到 0.3278，将 MC2 从 0.3925 提升到 0.6540，将 MC3 从 0.1807 提升到 0.3289；在官方 FACTOR 上，DoLa 将 News accuracy 从 0.5859 提升到 0.6149，将 Wiki accuracy 从 0.5862 提升到 0.6219。这两组官方 benchmark 共同验证了论文主结论。在 Colab Pythia-1.4B 全量 TruthfulQA-MC 上，DoLa 小幅提升 MC2，但降低 MC1/MC3，说明小模型设置下 DoLa 收益并不稳定。
 
-DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：补充官方 FACTOR Wiki/News 评测、中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和效率/显存开销评估。
+DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：官方/自写实现差异分析、中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和效率/显存开销评估。
 
 ## Appendix A. Run Commands
 
@@ -289,12 +308,18 @@ python scripts/run_hf_mc_eval.py \
   --output outputs/colab_pythia14_full.csv
 ```
 
-官方 DoLa 设置对齐材料见 `report/official_alignment_plan.md`。当前已完成 LLaMA-7B TruthfulQA-MC 的 layer bucket 对齐和官方 DoLa 主实验复现：使用论文中的高层候选区间 `[16, 32]` 的偶数层，并保留 final layer 作为 mature layer。MC1/MC2/MC3 指标计算逻辑说明见 `report/truthfulqa_mc_metrics.md`；Pythia-1.4B 全量结果作为低显存补充实验。
+官方 DoLa 设置对齐材料见 `report/official_alignment_plan.md`。当前已完成 LLaMA-7B TruthfulQA-MC 和 FACTOR 的 layer bucket 对齐与官方 DoLa 主实验复现：TruthfulQA 使用论文中的高层候选区间 `[16, 32]` 的偶数层，FACTOR 使用低层候选区间 `[0, 16]` 的偶数层，并保留 final layer 作为 mature layer。MC1/MC2/MC3 指标计算逻辑说明见 `report/truthfulqa_mc_metrics.md`；Pythia-1.4B 全量结果作为低显存补充实验。
 
 官方 DoLa LLaMA-7B TruthfulQA-MC：
 
 ```bash
 INSTALL_DEPS=0 bash scripts/run_official_dola_truthfulqa.sh
+```
+
+官方 DoLa LLaMA-7B FACTOR：
+
+```bash
+RUN_FULL=1 INSTALL_DEPS=0 bash scripts/run_official_dola_factor.sh
 ```
 
 官方代码：
@@ -315,6 +340,8 @@ pip install -r requirements.txt
 - `outputs/env_info.json`
 - `outputs/colab_pythia14_100_summary.csv`
 - `outputs/colab_pythia14_full_summary.csv`
+- `outputs/official_dola_truthfulqa_summary.csv`
+- `outputs/official_dola_factor/factor_summary.csv`
 - `figures/baseline_vs_dola.png`
 - `figures/layer_selection_sweep.png`
 - `figures/temperature_sweep.png`

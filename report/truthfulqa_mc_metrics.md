@@ -146,7 +146,13 @@ TruthfulQA MC metric smoke tests passed.
 - baseline: MC1 0.2392, MC2 0.3925, MC3 0.1807, n=790
 - DoLa high-layer: MC1 0.3278, MC2 0.6540, MC3 0.3289, n=790
 
+已完成的官方 FACTOR 补充复现：
+
+- 官方 DoLa `factor_eval.py`
+- `huggyllama/llama-7b`
+- FACTOR News: baseline accuracy 0.5859, DoLa accuracy 0.6149, n=1036
+- FACTOR Wiki: baseline accuracy 0.5862, DoLa accuracy 0.6219, n=2994
+
 仍待补充：
 
-- FACTOR Wiki / News 官方评测
 - 官方 prompt/tokenization 细节进一步核对
