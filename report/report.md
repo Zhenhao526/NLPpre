@@ -118,7 +118,7 @@ Output: next token y
 - Installed packages: `pandas`、`matplotlib`、`numpy`
 - Missing for real LLM inference: `torch`、`transformers`、`datasets`、`accelerate`
 
-因此本机可控实验仍用于解释 DoLa 的机制和案例。真实模型部分已经在 Google Colab T4 16GB 上完成 Pythia-1.4B + TruthfulQA-MC 全量补充实验；LLaMA-7B 主实验仍建议在 Python 3.10/3.11、PyTorch 2.0+、CUDA 11.8、24GB+ GPU 环境中运行。
+因此本机可控实验仍用于解释 DoLa 的机制和案例。真实模型部分已经完成两类实验：在 Google Colab T4 16GB 上完成 Pythia-1.4B + TruthfulQA-MC 全量补充实验；在双 RTX 3090 服务器上使用官方 DoLa 仓库完成 LLaMA-7B + TruthfulQA-MC 主实验复现。
 
 ### 4.2 Dataset
 
@@ -210,6 +210,23 @@ Output: next token y
 
 因此该结果不应被表述为“复现论文主结果”，而应定位为“低显存真实模型补充实验”：它证明了数据加载、hidden states 提取、DoLa contrastive scoring、官方 MC 指标计算和 Colab GPU 运行流程已经打通。
 
+### 5.5 Official DoLa LLaMA-7B TruthfulQA-MC
+
+为对齐论文主实验，本项目进一步在双 RTX 3090 服务器上运行官方 DoLa 仓库的 `tfqa_mc_eval.py`。模型为本地下载的 `huggyllama/llama-7b`，DoLa 使用 TruthfulQA-MC 的高层 candidate bucket：
+
+```text
+early-exit-layers = 16,18,20,22,24,26,28,30,32
+```
+
+其中最后一层 `32` 作为 mature layer，前面的偶数层作为 candidate premature layers。官方脚本最终评测了 790 条样本。
+
+| Implementation | Method | MC1 | MC2 | MC3 | n |
+|---|---|---:|---:|---:|---:|
+| official DoLa | baseline | 0.2392 | 0.3925 | 0.1807 | 790 |
+| official DoLa | DoLa high-layer | 0.3278 | 0.6540 | 0.3289 | 790 |
+
+该结果显示，官方实现下 DoLa 在 MC1、MC2 和 MC3 上均显著高于 baseline，方向与论文结论一致。因此，本项目的主复现实验已经完成；此前自写 HuggingFace 版本中 DoLa 低于 vanilla，说明差异更可能来自 prompt、tokenization、relative-top filtering、early-exit scoring 或官方数据预处理细节，而不是 DoLa 方法本身无效。
+
 ## 6. Analysis
 
 ### 6.1 Why DoLa Helps
@@ -238,13 +255,13 @@ DoLa 的提升主要来自对“流畅但错误”的高频先验进行惩罚。
 - 计算开销增加：需要保留并投影中间层 hidden states。
 - 层选择敏感：不同模型和任务的最佳 candidate layers 可能不同。
 - 对知识缺失无能为力：如果模型没有学到事实，DoLa 不能替代 RAG 或检索证据。
-- 本机实验是教学型模拟；Colab Pythia-1.4B 是低显存真实模型验证；二者都不等价于论文中 LLaMA-7B/13B/33B 的主结果。
+- 本机实验是教学型模拟；Colab Pythia-1.4B 是低显存真实模型验证；官方 DoLa LLaMA-7B TruthfulQA-MC 是当前最接近论文设置的主复现实验。仍需注意 `huggyllama/llama-7b` 与论文原始 LLaMA 权重可能存在实现和许可来源差异。
 
 ## 7. Conclusion
 
-本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和真实 GPU 补充实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在 Colab Pythia-1.4B 全量 TruthfulQA-MC 上，DoLa 小幅提升 MC2，但降低 MC1/MC3，说明小模型设置下 DoLa 收益并不稳定。
+本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和真实 GPU 复现实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在官方 DoLa LLaMA-7B TruthfulQA-MC 上，DoLa 将 MC1 从 0.2392 提升到 0.3278，将 MC2 从 0.3925 提升到 0.6540，将 MC3 从 0.1807 提升到 0.3289，验证了论文主结论。在 Colab Pythia-1.4B 全量 TruthfulQA-MC 上，DoLa 小幅提升 MC2，但降低 MC1/MC3，说明小模型设置下 DoLa 收益并不稳定。
 
-DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：在 24GB+ GPU 上补 LLaMA-7B TruthfulQA/FACTOR、中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和效率/显存开销评估。
+DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：补充官方 FACTOR Wiki/News 评测、中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和效率/显存开销评估。
 
 ## Appendix A. Run Commands
 
@@ -272,7 +289,13 @@ python scripts/run_hf_mc_eval.py \
   --output outputs/colab_pythia14_full.csv
 ```
 
-官方 DoLa 设置对齐材料见 `report/official_alignment_plan.md`。当前已完成 LLaMA-7B TruthfulQA-MC 的 layer bucket 对齐：使用论文中的高层候选区间 `[16, 32)` 的偶数层，并保留 final layer 作为 mature layer。MC1/MC2/MC3 指标计算逻辑说明见 `report/truthfulqa_mc_metrics.md`；Pythia-1.4B 全量结果已经补充，LLaMA-7B 真实跑分仍待 24GB+ GPU。
+官方 DoLa 设置对齐材料见 `report/official_alignment_plan.md`。当前已完成 LLaMA-7B TruthfulQA-MC 的 layer bucket 对齐和官方 DoLa 主实验复现：使用论文中的高层候选区间 `[16, 32]` 的偶数层，并保留 final layer 作为 mature layer。MC1/MC2/MC3 指标计算逻辑说明见 `report/truthfulqa_mc_metrics.md`；Pythia-1.4B 全量结果作为低显存补充实验。
+
+官方 DoLa LLaMA-7B TruthfulQA-MC：
+
+```bash
+INSTALL_DEPS=0 bash scripts/run_official_dola_truthfulqa.sh
+```
 
 官方代码：
 

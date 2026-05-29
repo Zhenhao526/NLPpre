@@ -139,8 +139,14 @@ TruthfulQA MC metric smoke tests passed.
 - vanilla: MC1 0.2081, MC2 0.3609, MC3 0.1879
 - DoLa: MC1 0.1628, MC2 0.3672, MC3 0.1311
 
-仍待 24GB+ GPU 补充：
+已完成的官方 LLaMA-7B 主复现：
 
-- 真实 LLaMA-7B 跑分
-- 与论文 Table 1 中 TruthfulQA-MC 的数值对比
+- 官方 DoLa `tfqa_mc_eval.py`
+- `huggyllama/llama-7b`
+- baseline: MC1 0.2392, MC2 0.3925, MC3 0.1807, n=790
+- DoLa high-layer: MC1 0.3278, MC2 0.6540, MC3 0.3289, n=790
+
+仍待补充：
+
+- FACTOR Wiki / News 官方评测
 - 官方 prompt/tokenization 细节进一步核对

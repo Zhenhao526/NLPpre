@@ -35,6 +35,7 @@ p_DoLa = softmax(z_DoLa / T)
 
 - 本机环境：Python 3.13，无 `nvidia-smi`，未安装 CUDA 版 PyTorch。
 - 本机演示数据：英文事实问答 + 中文事实问答 + 困难混淆样本，共 17 条。
+- 官方主实验：双 RTX 3090，LLaMA-7B，TruthfulQA-MC，官方 DoLa 仓库。
 - Colab GPU 补充实验：T4 16GB，Pythia-1.4B，TruthfulQA-MC validation 817 条。
 - Baselines：Greedy、Beam Search、Sampling。
 - 参数分析：Layer selection、Temperature。
@@ -60,6 +61,15 @@ Colab Pythia-1.4B 全量 TruthfulQA-MC：
 
 结论：DoLa 在 Pythia-1.4B 上仅小幅提升 MC2，MC1/MC3 下降；该结果证明真实 GPU 流程打通，但不等价于 LLaMA 主结果复现。
 
+官方 DoLa LLaMA-7B TruthfulQA-MC：
+
+| Method | MC1 | MC2 | MC3 | n |
+|---|---:|---:|---:|---:|
+| baseline | 0.2392 | 0.3925 | 0.1807 | 790 |
+| DoLa high-layer | 0.3278 | 0.6540 | 0.3289 | 790 |
+
+结论：官方实现下 DoLa 在三个指标上均显著优于 baseline，可作为本项目主复现实验结果。
+
 ## 6. 分析（3 分钟）
 
 - 成功案例：Chicago world's fair、W/Tungsten、cobalamin/Vitamin B12。
@@ -72,4 +82,4 @@ Colab Pythia-1.4B 全量 TruthfulQA-MC：
 
 - DoLa 优点：无需训练、可插入推理、对事实性有帮助。
 - DoLa 局限：增加计算开销；依赖层选择；不能创造模型不知道的知识。
-- 后续方向：24GB+ GPU 上补 LLaMA-7B、中文事实性 benchmark、RAG + DoLa、效率和 KV cache 分析。
+- 后续方向：FACTOR Wiki/News、官方/自写实现差异分析、中文事实性 benchmark、RAG + DoLa、效率和 KV cache 分析。

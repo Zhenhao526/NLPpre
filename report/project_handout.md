@@ -191,11 +191,14 @@ DoLa 不需要额外弱模型，而是在同一个模型内部做：
 
 ### 5.2 真实模型评测
 
-脚本：`scripts/run_hf_mc_eval.py`
+脚本：
+
+- 官方主实验：`scripts/run_official_dola_truthfulqa.sh`
+- 自写补充评测：`scripts/run_hf_mc_eval.py`
 
 作用：
 
-- 在 GPU 环境中加载 HuggingFace causal LM。
+- 在 GPU 环境中加载 LLaMA-7B / HuggingFace causal LM。
 - 使用 hidden states 和模型输出 embedding head 计算各层 logits。
 - 支持 TruthfulQA 多选评测。
 - 输出官方 MC1/MC2/MC3 指标。
@@ -206,7 +209,7 @@ DoLa 不需要额外弱模型，而是在同一个模型内部做：
 - PyTorch + CUDA。
 - Transformers、datasets、accelerate。
 - Pythia-1.4B 可在 Colab T4 16GB 上运行。
-- LLaMA-7B 建议 24GB 以上显存。
+- LLaMA-7B 已在双 RTX 3090 服务器上完成官方 DoLa TruthfulQA-MC 复现。
 
 官方实验设置对齐材料：
 
@@ -214,7 +217,7 @@ DoLa 不需要额外弱模型，而是在同一个模型内部做：
 report/official_alignment_plan.md
 ```
 
-该文档已经把论文中的 LLaMA layer bucket、TruthfulQA/FACTOR/GSM8K 设置、APC 参数、结果记录模板和当前项目配置逐项对齐。当前已完成 Pythia-1.4B 低显存真实模型验证，LLaMA-7B 主实验仍待 24GB+ GPU。
+该文档已经把论文中的 LLaMA layer bucket、TruthfulQA/FACTOR/GSM8K 设置、APC 参数、结果记录模板和当前项目配置逐项对齐。当前已完成官方 DoLa LLaMA-7B TruthfulQA-MC 主实验复现；FACTOR 仍作为下一步补充 benchmark。
 
 ## 6. 实验设置
 
@@ -286,9 +289,32 @@ temperature sweep = [0.1, 0.3, 0.7, 1.0]
 
 讲述时必须补一句：
 
-> 这里的结果来自本机可复现实验，重点验证机制和分析流程；真实 GPU 部分已经补充 Pythia-1.4B + TruthfulQA-MC，但它不是论文 LLaMA 主结果。
+> 这里的结果来自本机可复现实验，重点验证机制和分析流程；论文主设置的证据来自官方 DoLa LLaMA-7B TruthfulQA-MC 复现实验。
 
-### 7.2 Colab Pythia-1.4B TruthfulQA-MC
+### 7.2 Official DoLa LLaMA-7B TruthfulQA-MC
+
+运行环境：
+
+- 双 RTX 3090 服务器。
+- 官方 DoLa 仓库 `tfqa_mc_eval.py`。
+- 模型：本地下载的 `huggyllama/llama-7b`。
+- DoLa 层设置：`16,18,20,22,24,26,28,30,32`。
+- 其中 `32` 是 mature layer，前面的偶数层是 candidate premature layers。
+
+结果：
+
+| Method | MC1 | MC2 | MC3 | n |
+|---|---:|---:|---:|---:|
+| baseline | 0.2392 | 0.3925 | 0.1807 | 790 |
+| DoLa high-layer | 0.3278 | 0.6540 | 0.3289 | 790 |
+
+解读：
+
+- DoLa 在 MC1/MC2/MC3 上均显著高于 baseline。
+- 该结果方向与论文主结论一致，因此可作为本项目真实模型主复现结果。
+- 自写 HuggingFace 版本中 DoLa 低于 vanilla，说明后续应核对 prompt、tokenization、relative-top filtering 和 early-exit scoring 细节。
+
+### 7.3 Colab Pythia-1.4B TruthfulQA-MC
 
 运行环境：
 
@@ -312,7 +338,7 @@ temperature sweep = [0.1, 0.3, 0.7, 1.0]
 - DoLa 在 MC1 和 MC3 上下降，说明 Pythia-1.4B 小模型上收益不稳定。
 - 该实验应定位为低显存补充实验，不等价于论文 LLaMA-7B/13B/33B 主结果复现。
 
-### 7.3 Layer Selection
+### 7.4 Layer Selection
 
 当前 layer sweep 结果：
 
@@ -460,11 +486,12 @@ DoLa 容易失败的情况：
 - 说明当前环境限制。
 - 解释本机实验定位。
 - 展示 baseline 表格。
-- 展示 Colab Pythia-1.4B TruthfulQA-MC 结果。
+- 展示官方 DoLa LLaMA-7B TruthfulQA-MC 主结果。
+- 展示 Colab Pythia-1.4B TruthfulQA-MC 补充结果。
 
 必须说：
 
-> 本机实验解释机制，Colab Pythia-1.4B 证明真实模型链路已打通；但论文主设置仍需 LLaMA-7B 及更大 GPU。
+> 本机实验解释机制，官方 DoLa LLaMA-7B 结果验证论文主结论，Pythia-1.4B 和自写 HF 结果用于补充分析模型规模与实现细节影响。
 
 ### 9.4 8-11 分钟：讲分析
 
@@ -482,7 +509,7 @@ DoLa 容易失败的情况：
 - DoLa 是轻量 decoding 方法。
 - 能缓解一部分 hallucination。
 - 不能替代 RAG 或外部验证。
-- 下一步是 24GB+ GPU 上补 LLaMA-7B 主实验。
+- 下一步是补官方 FACTOR Wiki/News，并分析自写 HF 实现与官方实现的差异。
 
 ## 10. 常见答辩问题与回答
 
@@ -504,7 +531,7 @@ DoLa 不会创造新知识。如果正确答案在模型所有层中都没有足
 
 ### Q5：当前结果能否说明 DoLa 在真实 LLM 上有效？
 
-当前结果已经包含一个真实 LLM 补充实验：Pythia-1.4B 在 Colab T4 16GB 上完成了 TruthfulQA-MC 全量评测。但这个模型小于论文主实验中的 LLaMA 系列，因此只能说明真实模型流程跑通，以及 DoLa 在小模型上收益不稳定。要判断论文主结论，还需要 LLaMA-7B/13B 和 FACTOR 等 benchmark。
+可以。官方 DoLa LLaMA-7B TruthfulQA-MC 已经完成，DoLa 在 MC1、MC2、MC3 上均显著高于 baseline，方向与论文一致。Pythia-1.4B 补充实验说明小模型上收益不稳定；自写 HF 版本和官方版本的差异则提示后续需要核对 prompt、tokenization 和 scoring 细节。
 
 ### Q6：为什么 Sampling 比 Greedy 差？
 
@@ -518,7 +545,7 @@ Sampling 引入随机性，可能选择非最大概率选项。temperature 越�
 
 当前不足：
 
-1. 尚未在 24GB+ GPU 上跑 LLaMA-7B 主实验。
+1. 尚未补官方 FACTOR Wiki/News benchmark。
 2. 本机数据规模小，accuracy 指标离散。
 3. Beam Search 在多选任务中只是近似实现。
 4. Pythia-1.4B 结果显示 DoLa 收益不稳定，需要进一步分析层选择和模型规模影响。
@@ -526,8 +553,8 @@ Sampling 引入随机性，可能选择非最大概率选项。temperature 越�
 
 最优先的改进：
 
-1. 在 24GB+ GPU 上跑 LLaMA-7B TruthfulQA-MC。
-2. 补 FACTOR，并与官方 DoLa 参数和结果对齐。
+1. 跑官方 FACTOR Wiki/News。
+2. 分析自写 HF TruthfulQA 实现与官方 DoLa 实现差异。
 3. 扩大中文事实性数据集。
 4. 做 logits 级案例可视化。
 5. 记录 latency、显存和 tokens/s。
@@ -536,4 +563,4 @@ Sampling 引入随机性，可能选择非最大概率选项。temperature 越�
 
 DoLa 的核心贡献是提出一种非常轻量的 factuality enhancement 方法：不用训练、不用检索，只利用模型内部不同层之间的预测差异。它适合缓解一部分由高频先验和表面模式导致的 hallucination，但不能解决知识缺失、事实过期和复杂实体混淆。
 
-本项目目前完成了从方法理解到可运行实验、图表、报告、PPT 和 Colab 真实模型补充实验的闭环。后续只要补上 LLaMA-7B/FACTOR 的 24GB+ GPU 主实验，就能从“课程复现实验”进一步提升为更完整的论文复现项目。
+本项目目前完成了从方法理解到可运行实验、图表、报告、PPT、Colab 真实模型补充实验和官方 DoLa LLaMA-7B TruthfulQA-MC 主复现实验的闭环。后续补上 FACTOR 和实现差异分析后，就能从“课程复现实验”进一步提升为更完整的论文复现项目。

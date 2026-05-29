@@ -3,7 +3,7 @@
 本项目根据 `DoLa_大作业任务书_完整版.md` 搭建。目录包含两类实验：
 
 - 本机可复现实验：`scripts/run_local_dola_demo.py`，无需 GPU 和 Transformers，用透明的 layer/logits 模拟复现 DoLa 的核心对比思想，并生成 baseline、layer selection、temperature、案例分析和图表。
-- 真实模型评测：`scripts/run_hf_mc_eval.py`，用于在 Python 3.10/3.11 + PyTorch + CUDA 环境中运行 HuggingFace causal LM 的 TruthfulQA 多选评测；已在 Colab T4 16GB 上完成 Pythia-1.4B 全量 TruthfulQA-MC 补充实验。
+- 真实模型评测：已使用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 主实验复现；同时保留 `scripts/run_hf_mc_eval.py` 用于 HuggingFace causal LM 的补充评测和诊断。
 
 论文与官方资源：
 
@@ -27,6 +27,9 @@
 │   ├── layer_probability_trace.png
 │   ├── layer_selection_sweep.png
 │   └── temperature_sweep.png
+├── notebooks/
+│   └── colab_pythia_truthfulqa.ipynb
+├── outputs/
 ├── report/
 │   ├── report.md
 │   └── slides_outline.md
@@ -38,7 +41,7 @@
 
 ## 环境安装
 
-当前本机实测为 Python 3.13，未检测到 `nvidia-smi`，且未安装 `torch/transformers`。因此本机默认先跑可复现实验；真实模型补充实验可在 Colab T4 16GB 上运行 Pythia-1.4B，真实 7B 模型建议使用单卡 24GB 以上 GPU。
+当前本机实测为 Python 3.13，未检测到 `nvidia-smi`，且未安装 `torch/transformers`。因此本机默认先跑可复现实验；真实 LLaMA-7B 复现已在双 RTX 3090 服务器上完成，Colab T4 16GB 可运行 Pythia-1.4B 补充实验。
 
 推荐真实复现实验环境：
 
@@ -79,6 +82,15 @@ python scripts/collect_env.py
 | DoLa | 0.882 | 0.882 | final logits minus selected premature logits |
 
 ## 真实模型 TruthfulQA 复现
+
+官方 DoLa LLaMA-7B TruthfulQA-MC 主结果：
+
+| Run | MC1 | MC2 | MC3 | n |
+|---|---:|---:|---:|---:|
+| baseline | 0.2392 | 0.3925 | 0.1807 | 790 |
+| DoLa high-layer | 0.3278 | 0.6540 | 0.3289 | 790 |
+
+该结果由官方 DoLa 仓库 `tfqa_mc_eval.py` 在本地下载的 `huggyllama/llama-7b` 上得到。DoLa 在 MC1/MC2/MC3 上均显著高于 baseline，因此可作为本项目的主复现实验结果。
 
 配置文件：`configs/hf_truthfulqa.yaml`。
 
@@ -147,7 +159,4 @@ z_DoLa = z_M - alpha * z_l
 
 ## 局限
 
-本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式提交时，如有 GPU，应补跑 `scripts/run_hf_mc_eval.py` 或官方 DoLa 仓库，并把真实日志、GPU 使用截图和输出结果放入 `outputs/` 与报告附录。
-├── notebooks/
-│   └── colab_pythia_truthfulqa.ipynb
-├── outputs/
+本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式结果以官方 DoLa LLaMA-7B TruthfulQA-MC 复现实验为主；Pythia-1.4B 和自写 HuggingFace 评测作为补充与实现差异分析。

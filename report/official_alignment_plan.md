@@ -125,7 +125,7 @@ configs/hf_factor_llama7b.yaml
 
 当前阶段可在报告中写：
 
-> 本项目的 HuggingFace 入口已按 DoLa layer bucket、contrastive likelihood 和 MC1/MC2/MC3 指标对齐 TruthfulQA-MC；真实数值结果仍需 GPU 环境运行 LLaMA-7B 后补充。
+> 本项目已用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 主复现实验；自写 HuggingFace 入口保留为实现诊断和补充实验。
 
 ### 4.2 FACTOR
 
@@ -134,7 +134,7 @@ configs/hf_factor_llama7b.yaml
 - News accuracy
 - Wiki accuracy
 
-当前项目尚未实现 FACTOR loader。可作为第三阶段扩展。
+当前项目不再单独手写 FACTOR loader，优先调用官方 DoLa `factor_eval.py` 复现实验。脚本模板见 `scripts/run_official_dola_factor.sh`。
 
 ### 4.3 Open-ended TruthfulQA
 
@@ -159,7 +159,7 @@ configs/hf_factor_llama7b.yaml
 | TruthfulQA-MC post-softmax | 论文发现不使用 post-softmax 更好 | 脚本用 contrastive logits 直接评分 | 对齐 |
 | MC1/MC2/MC3 | 官方指标 | 已实现均值汇总与逐题记录 | 对齐 |
 | LLaMA 权重 | LLaMA family | 默认 `huggyllama/llama-7b` | 近似，需要说明 |
-| GPU 环境 | V100, fp16, batch size 1 | 当前无 GPU | 待补 |
+| GPU 环境 | V100, fp16, batch size 1 | 双 RTX 3090，官方 TruthfulQA 已完成 | 部分对齐 |
 
 ## 6. GPU 可用后的命令模板
 
@@ -197,24 +197,24 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method do
 
 ## 7. 结果记录模板
 
-GPU 实验完成后，在报告中填入：
+当前官方 TruthfulQA-MC 结果：
 
 | Model | Dataset | Method | Candidate Layers | Metric | Score | Notes |
 |---|---|---|---|---|---:|---|
-| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC1 | TBD | official metric |
-| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC2 | TBD | official metric |
-| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC3 | TBD | official metric |
-| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32)` even | MC1 | TBD | dynamic JSD |
-| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32)` even | MC2 | TBD | dynamic JSD |
-| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32)` even | MC3 | TBD | dynamic JSD |
+| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC1 | 0.2392 | official DoLa |
+| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC2 | 0.3925 | official DoLa |
+| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC3 | 0.1807 | official DoLa |
+| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC1 | 0.3278 | official DoLa |
+| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC2 | 0.6540 | official DoLa |
+| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC3 | 0.3289 | official DoLa |
 
 环境记录：
 
 | 项目 | 值 |
 |---|---|
-| GPU | TBD |
-| CUDA | TBD |
-| PyTorch | TBD |
+| GPU | RTX 3090 x2 |
+| CUDA | server driver/runtime dependent |
+| PyTorch | official DoLa conda environment |
 | Transformers | TBD |
 | dtype | fp16 |
 | batch size | 1 |
@@ -241,7 +241,7 @@ GPU 实验完成后，在报告中填入：
 
 报告中推荐表述：
 
-> 本项目优先对齐了 DoLa 的核心机制、candidate layer bucket、mature layer、relative top、TruthfulQA-MC contrastive likelihood 和 MC1/MC2/MC3 指标实现。由于当前无 GPU，尚未完成真实 LLaMA-7B benchmark；后续 GPU 实验将运行这些指标并与论文 Table 1 做数值对比。
+> 本项目优先对齐了 DoLa 的核心机制、candidate layer bucket、mature layer、relative top、TruthfulQA-MC contrastive likelihood 和 MC1/MC2/MC3 指标实现。当前官方 DoLa LLaMA-7B TruthfulQA-MC 已完成，结果显示 DoLa 在三个指标上均优于 baseline；自写 HuggingFace 结果与官方结果不一致时，应从 prompt、tokenization、relative-top filtering 和 early-exit scoring 细节解释。
 
 ## 9. 当前已完成的第二步成果
 
@@ -251,18 +251,14 @@ GPU 实验完成后，在报告中填入：
 - 更新 `configs/hf_truthfulqa.yaml` 为 LLaMA-7B TruthfulQA 高层 bucket。
 - 新增 `configs/hf_factor_llama7b.yaml` 作为 FACTOR/GSM8K 低层 bucket 模板。
 - 调整 `scripts/run_hf_mc_eval.py` 方法命名为 `vanilla` / `dola`，避免把多选似然评分误称为 greedy/beam/sampling。
-- 明确当前未完成项：FACTOR loader、GPU 跑分、与论文 Table 1 的真实数值对比。
+- 完成官方 DoLa LLaMA-7B TruthfulQA-MC 主复现实验。
+- 明确当前未完成项：FACTOR Wiki/News、官方/自写实现差异分析。
 
 ## 10. 下一步建议
 
-在没有 GPU 的情况下，还可以继续做：
+下一步建议：
 
-1. 写 FACTOR 数据 loader。
-2. 做 layer/logits 可视化脚本模板。
-3. 将 MC1/MC2/MC3 指标说明整合进 `report/report.md` 和 PPT。
-
-GPU 可用后优先做：
-
-1. 跑 LLaMA-7B TruthfulQA-MC。
-2. 填写结果记录模板。
-3. 与论文 Table 1 的 TruthfulQA-MC 行对齐分析。
+1. 运行 `scripts/run_official_dola_factor.sh` 补 FACTOR Wiki/News。
+2. 做官方 DoLa 与自写 HuggingFace TruthfulQA 实现差异分析。
+3. 补 layer/logits 可视化脚本模板。
+4. 将 FACTOR 结果整合进 `report/report.md` 和 PPT。
