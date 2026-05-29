@@ -129,7 +129,7 @@ TruthfulQA MC metric smoke tests passed.
 - MC1 / MC2 / MC3 计算逻辑
 - LLaMA-7B TruthfulQA candidate layer bucket `[16, 32)` 偶数层
 - mature layer = final layer
-- relative top = 0.1
+- relative top = 0.0 for the official-style LLaMA-7B TruthfulQA-MC run
 
 已完成的低显存 GPU 补充：
 
@@ -146,6 +146,14 @@ TruthfulQA MC metric smoke tests passed.
 - baseline: MC1 0.2392, MC2 0.3925, MC3 0.1807, n=790
 - DoLa high-layer: MC1 0.3278, MC2 0.6540, MC3 0.3289, n=790
 
+已完成的 HF official-style LLaMA-7B 复核：
+
+- 自写 `scripts/run_hf_mc_eval.py`
+- 原始 `TruthfulQA.csv`，official-style prompt，`relative_top=0.0`
+- vanilla: MC1 0.2392, MC2 0.3925, MC3 0.1807, n=790
+- DoLa: MC1 0.3038, MC2 0.6445, MC3 0.3148, n=790
+- 诊断字段显示 `masked_target_tokens=0`
+
 已完成的官方 FACTOR 补充复现：
 
 - 官方 DoLa `factor_eval.py`
@@ -155,4 +163,4 @@ TruthfulQA MC metric smoke tests passed.
 
 仍待补充：
 
-- 官方 prompt/tokenization 细节进一步核对
+- HF official-style 与官方 DoLa high-layer 的残余 tokenization/scoring 差异核对

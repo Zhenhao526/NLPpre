@@ -3,7 +3,7 @@
 本项目根据 `DoLa_大作业任务书_完整版.md` 搭建。目录包含两类实验：
 
 - 本机可复现实验：`scripts/run_local_dola_demo.py`，无需 GPU 和 Transformers，用透明的 layer/logits 模拟复现 DoLa 的核心对比思想，并生成 baseline、layer selection、temperature、案例分析和图表。
-- 真实模型评测：已使用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 与 FACTOR News/Wiki 主实验复现；同时保留 `scripts/run_hf_mc_eval.py` 用于 HuggingFace causal LM 的补充评测和诊断。
+- 真实模型评测：已使用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 与 FACTOR News/Wiki 主实验复现；同时完成自写 HuggingFace official-style TruthfulQA-MC 全量复核，用于定位和修复实现差异。
 
 论文与官方资源：
 
@@ -90,7 +90,16 @@ python scripts/collect_env.py
 | baseline | 0.2392 | 0.3925 | 0.1807 | 790 |
 | DoLa high-layer | 0.3278 | 0.6540 | 0.3289 | 790 |
 
-该结果由官方 DoLa 仓库 `tfqa_mc_eval.py` 在本地下载的 `huggyllama/llama-7b` 上得到。DoLa 在 MC1/MC2/MC3 上均显著高于 baseline，因此可作为本项目的主复现实验结果。
+该结果由官方 DoLa 仓库 `tfqa_mc_eval.py` 在本地下载的 `huggyllama/llama-7b` 上得到。DoLa 在 MC1/MC2/MC3 上均高于 baseline，因此可作为本项目的主复现实验结果。
+
+自写 HuggingFace official-style TruthfulQA-MC 全量复核结果：
+
+| Method | MC1 | MC2 | MC3 | n |
+|---|---:|---:|---:|---:|
+| vanilla | 0.2392 | 0.3925 | 0.1807 | 790 |
+| DoLa | 0.3038 | 0.6445 | 0.3148 | 790 |
+
+修复后的 HF 入口使用原始 `TruthfulQA.csv`、官方风格 QA prompt、`relative_top=0.0` 和 official-like DoLa scoring。vanilla 已与官方 baseline 对齐，DoLa 也恢复为明显高于 vanilla；与官方 DoLa high-layer 仍有小幅差异，后续主要分析残余 scoring/tokenization/early-exit 细节。
 
 官方 DoLa LLaMA-7B FACTOR 结果：
 
@@ -103,13 +112,13 @@ python scripts/collect_env.py
 
 FACTOR News/Wiki 上 DoLa 同样高于 baseline，进一步支持 DoLa 在真实 factuality benchmark 上的有效性。
 
-TruthfulQA 自写补充评测配置文件：`configs/hf_truthfulqa.yaml`。官方 FACTOR 复现脚本为 `scripts/run_official_dola_factor.sh`。
+TruthfulQA 自写 official-style 复核配置文件：`configs/hf_truthfulqa.yaml`。官方 FACTOR 复现脚本为 `scripts/run_official_dola_factor.sh`。
 
 ```powershell
 python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method all
 ```
 
-官方设置对齐说明见 `report/official_alignment_plan.md`。当前 TruthfulQA 配置已按论文中的 LLaMA-7B 高层 bucket 对齐：candidate layers 为 `[16, 18, 20, 22, 24, 26, 28, 30]`，mature layer 为 final layer，relative top 为 `0.1`。
+官方设置对齐说明见 `report/official_alignment_plan.md`。当前 TruthfulQA 配置已按论文中的 LLaMA-7B 高层 bucket 对齐：candidate layers 为 `[16, 18, 20, 22, 24, 26, 28, 30]`，mature layer 为 final layer，relative top 为 `0.0`。
 MC1/MC2/MC3 指标说明见 `report/truthfulqa_mc_metrics.md`，本机可用 `python scripts/test_truthfulqa_metrics.py` 验证指标计算。
 
 默认模型为 `huggyllama/llama-7b`。如果使用 gated LLaMA/Llama-2 权重，需要先登录 HuggingFace 并接受模型许可。显存不足时可改用更小的 causal LM，但报告中应说明模型差异。
@@ -170,4 +179,4 @@ z_DoLa = z_M - alpha * z_l
 
 ## 局限
 
-本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式结果以官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 复现实验为主；Pythia-1.4B 和自写 HuggingFace 评测作为补充与实现差异分析。
+本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式结果以官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 复现实验为主；Pythia-1.4B 和自写 HuggingFace official-style 评测作为补充与实现差异分析。

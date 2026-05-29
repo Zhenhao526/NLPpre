@@ -68,7 +68,16 @@ Colab Pythia-1.4B 全量 TruthfulQA-MC：
 | baseline | 0.2392 | 0.3925 | 0.1807 | 790 |
 | DoLa high-layer | 0.3278 | 0.6540 | 0.3289 | 790 |
 
-结论：官方实现下 DoLa 在三个指标上均显著优于 baseline，可作为本项目主复现实验结果。
+结论：官方实现下 DoLa 在三个指标上均高于 baseline，可作为本项目主复现实验结果。这里不额外声称统计显著性。
+
+HF official-style TruthfulQA-MC 复核：
+
+| Method | MC1 | MC2 | MC3 | n |
+|---|---:|---:|---:|---:|
+| vanilla | 0.2392 | 0.3925 | 0.1807 | 790 |
+| DoLa | 0.3038 | 0.6445 | 0.3148 | 790 |
+
+结论：修复数据、prompt、relative-top 和 scoring 后，自写 HF vanilla 已与官方 baseline 对齐，DoLa 也明显高于 vanilla。
 
 官方 DoLa LLaMA-7B FACTOR：
 
@@ -93,4 +102,4 @@ Colab Pythia-1.4B 全量 TruthfulQA-MC：
 
 - DoLa 优点：无需训练、可插入推理、对事实性有帮助。
 - DoLa 局限：增加计算开销；依赖层选择；不能创造模型不知道的知识。
-- 后续方向：官方/自写实现差异分析、中文事实性 benchmark、RAG + DoLa、效率和 KV cache 分析。
+- 后续方向：HF/官方残余差异分析、中文事实性 benchmark、RAG + DoLa、效率和 KV cache 分析。

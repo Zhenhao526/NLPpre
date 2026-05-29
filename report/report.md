@@ -225,7 +225,16 @@ early-exit-layers = 16,18,20,22,24,26,28,30,32
 | official DoLa | baseline | 0.2392 | 0.3925 | 0.1807 | 790 |
 | official DoLa | DoLa high-layer | 0.3278 | 0.6540 | 0.3289 | 790 |
 
-该结果显示，官方实现下 DoLa 在 MC1、MC2 和 MC3 上均显著高于 baseline，方向与论文结论一致。因此，本项目的主复现实验已经完成；此前自写 HuggingFace 版本中 DoLa 低于 vanilla，说明差异更可能来自 prompt、tokenization、relative-top filtering、early-exit scoring 或官方数据预处理细节，而不是 DoLa 方法本身无效。
+该结果显示，官方实现下 DoLa 在 MC1、MC2 和 MC3 上均高于 baseline，方向与论文结论一致。因此，本项目的主复现实验已经完成。
+
+为进一步检查此前自写 HuggingFace 版本中 DoLa 低于 vanilla 的异常现象，本项目随后将 `scripts/run_hf_mc_eval.py` 对齐到官方 TruthfulQA-MC 链路：改用原始 `TruthfulQA.csv` 的 790 条样本、官方风格 QA prompt、`relative_top=0.0`，并采用 official-like token-level DoLa scoring。修复后的全量复核结果如下：
+
+| Implementation | Method | MC1 | MC2 | MC3 | n |
+|---|---|---:|---:|---:|---:|
+| HF official-style | vanilla | 0.2392 | 0.3925 | 0.1807 | 790 |
+| HF official-style | DoLa | 0.3038 | 0.6445 | 0.3148 | 790 |
+
+该复核有两个结论。第一，HF official-style vanilla 与官方 baseline 对齐，说明数据、prompt 和基础 likelihood scoring 的主要偏差已经消除。第二，HF DoLa 恢复为明显高于 vanilla，但仍略低于官方 DoLa high-layer，残余差异应继续从 tokenization 边界、early-exit logits 获取、动态层选择和官方 `lm_score` 的细节实现中解释。
 
 ### 5.6 Official DoLa LLaMA-7B FACTOR
 
@@ -274,13 +283,13 @@ DoLa 的提升主要来自对“流畅但错误”的高频先验进行惩罚。
 - 计算开销增加：需要保留并投影中间层 hidden states。
 - 层选择敏感：不同模型和任务的最佳 candidate layers 可能不同。
 - 对知识缺失无能为力：如果模型没有学到事实，DoLa 不能替代 RAG 或检索证据。
-- 本机实验是教学型模拟；Colab Pythia-1.4B 是低显存真实模型验证；官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 是当前最接近论文设置的主复现实验。仍需注意 `huggyllama/llama-7b` 与论文原始 LLaMA 权重可能存在实现和许可来源差异。
+- 本机实验是教学型模拟；Colab Pythia-1.4B 是低显存真实模型验证；官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 是当前最接近论文设置的主复现实验；HF official-style TruthfulQA-MC 用于复核自写实现。仍需注意 `huggyllama/llama-7b` 与论文原始 LLaMA 权重可能存在实现和许可来源差异。
 
 ## 7. Conclusion
 
-本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和真实 GPU 复现实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在官方 DoLa LLaMA-7B TruthfulQA-MC 上，DoLa 将 MC1 从 0.2392 提升到 0.3278，将 MC2 从 0.3925 提升到 0.6540，将 MC3 从 0.1807 提升到 0.3289；在官方 FACTOR 上，DoLa 将 News accuracy 从 0.5859 提升到 0.6149，将 Wiki accuracy 从 0.5862 提升到 0.6219。这两组官方 benchmark 共同验证了论文主结论。在 Colab Pythia-1.4B 全量 TruthfulQA-MC 上，DoLa 小幅提升 MC2，但降低 MC1/MC3，说明小模型设置下 DoLa 收益并不稳定。
+本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和真实 GPU 复现实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在官方 DoLa LLaMA-7B TruthfulQA-MC 上，DoLa 将 MC1 从 0.2392 提升到 0.3278，将 MC2 从 0.3925 提升到 0.6540，将 MC3 从 0.1807 提升到 0.3289；在官方 FACTOR 上，DoLa 将 News accuracy 从 0.5859 提升到 0.6149，将 Wiki accuracy 从 0.5862 提升到 0.6219。自写 HF official-style 全量复核中，vanilla 与官方 baseline 对齐，DoLa 达到 MC1 0.3038、MC2 0.6445、MC3 0.3148，说明此前 HF 异常主要来自评测链路未对齐，而不是 DoLa 思想本身无效。在 Colab Pythia-1.4B 全量 TruthfulQA-MC 上，DoLa 小幅提升 MC2，但降低 MC1/MC3，说明小模型设置下 DoLa 收益并不稳定。
 
-DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：官方/自写实现差异分析、中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和效率/显存开销评估。
+DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：官方/自写实现残余差异分析、中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和效率/显存开销评估。
 
 ## Appendix A. Run Commands
 
@@ -342,6 +351,7 @@ pip install -r requirements.txt
 - `outputs/colab_pythia14_full_summary.csv`
 - `outputs/official_dola_truthfulqa_summary.csv`
 - `outputs/official_dola_factor/factor_summary.csv`
+- `outputs/hf_official_fix/llama7b_official_style_full_summary.csv`
 - `figures/baseline_vs_dola.png`
 - `figures/layer_selection_sweep.png`
 - `figures/temperature_sweep.png`

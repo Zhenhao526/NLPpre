@@ -23,7 +23,7 @@
 \setbeamertemplate{footline}[frame number]
 
 \title[DoLa 事实性增强]{基于 DoLa 解码策略的大语言模型事实性增强方法复现与分析}
-\subtitle{本机机制实验、Colab 补充实验与官方 LLaMA-7B 复现结果}
+\subtitle{本机机制实验、HF 复核与官方 LLaMA-7B 复现结果}
 \author{自然语言处理课程大作业}
 \institute{NLPpre}
 \date{\today}
@@ -67,6 +67,7 @@
           \item Layer selection 与 temperature 分析
           \item Colab Pythia-1.4B 全量 TruthfulQA-MC
           \item 官方 LLaMA-7B TruthfulQA-MC 与 FACTOR
+          \item 自写 HF official-style TruthfulQA-MC 全量复核
           \item 报告、图表、PPT、讲稿与可运行脚本
         \end{itemize}
       \end{block}
@@ -77,7 +78,7 @@
           \item 本机 17 条实验用于解释机制，不作为 benchmark 主结果
           \item Pythia-1.4B 用于低显存真实模型补充验证
           \item 论文设置对齐以官方 DoLa LLaMA-7B 为主
-          \item 当前主结果来自 TruthfulQA-MC 与 FACTOR 官方脚本
+          \item HF official-style 结果用于复核自写实现偏差
         \end{itemize}
       \end{alertblock}
     \end{column}
@@ -272,6 +273,33 @@
   \end{block}
 \end{frame}
 
+\begin{frame}{自写 HF official-style 复核}
+  \small
+  \begin{table}
+    \centering
+    \begin{tabular}{lcccc}
+      \toprule
+      Method & MC1 & MC2 & MC3 & n \\
+      \midrule
+      vanilla & 0.2392 & 0.3925 & 0.1807 & 790 \\
+      DoLa & \textbf{0.3038} & \textbf{0.6445} & \textbf{0.3148} & 790 \\
+      \bottomrule
+    \end{tabular}
+  \end{table}
+
+  \vspace{0.4em}
+  \begin{block}{对齐修复}
+    使用原始 \code{TruthfulQA.csv} 790 条、官方风格 QA prompt、
+    \code{relative\_top=0.0}，并采用 token-level official-like DoLa scoring。
+  \end{block}
+
+  \begin{block}{结论}
+    vanilla 已与官方 baseline 对齐；DoLa 也明显高于 vanilla。
+    与官方 DoLa high-layer 仍有小幅差距，后续主要检查 tokenization、
+    early-exit logits 与 \code{lm\_score} 细节。
+  \end{block}
+\end{frame}
+
 \begin{frame}{官方 LLaMA-7B FACTOR 结果}
   \small
   \begin{table}
@@ -427,6 +455,7 @@
     \item DoLa 通过同一模型内部的 layer contrast 改变 decoding 分布。
     \item 本机机制实验中，DoLa 的 accuracy/truthfulness 从 0.706 提升到 0.882。
     \item 官方 LLaMA-7B TruthfulQA-MC 中，DoLa 在 MC1/MC2/MC3 上均优于 baseline。
+    \item HF official-style 复核中，vanilla 与官方 baseline 对齐，DoLa 明显高于 vanilla。
     \item 官方 LLaMA-7B FACTOR 中，DoLa 在 News/Wiki accuracy 上均优于 baseline。
     \item Colab Pythia-1.4B 全量评测已打通，DoLa 小幅提升 MC2 但降低 MC1/MC3。
     \item 本机 temperature 分析显示：更高采样温度会降低 accuracy，DoLa 可部分缓解。
@@ -441,7 +470,7 @@
 
 \begin{frame}{下一步提升方向}
   \begin{enumerate}
-    \item 对比自写 HF 实现与官方 DoLa：prompt、tokenization、relative top、scoring。
+    \item 分析 HF official-style 与官方 DoLa 的残余差异：tokenization、early-exit logits、\code{lm\_score}。
     \item 加强 logits 可视化：成功/失败样例的 answer/trap logits 与选层曲线。
     \item 扩展中文事实性数据集，覆盖历史、地理、文学和科学常识。
     \item 增加效率分析：latency、tokens/s、显存、candidate layers 数量影响。
@@ -458,6 +487,7 @@
     \item 官方 FACTOR：\code{scripts/run\_official\_dola\_factor.sh}
     \item 实验结果：\code{outputs/local\_results\_summary.csv}
     \item 官方 TruthfulQA 结果：\code{outputs/official\_dola\_truthfulqa\_summary.csv}
+    \item HF official-style 结果：\code{outputs/hf\_official\_fix/llama7b\_official\_style\_full\_summary.csv}
     \item 官方 FACTOR 结果：\code{outputs/official\_dola\_factor/factor\_summary.csv}
     \item Colab 结果：\code{outputs/colab\_pythia14\_full\_summary.csv}
     \item Colab Notebook：\code{notebooks/colab\_pythia\_truthfulqa.ipynb}

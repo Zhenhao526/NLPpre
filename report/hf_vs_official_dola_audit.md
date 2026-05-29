@@ -1,6 +1,6 @@
 # 官方 DoLa 与自写 HuggingFace TruthfulQA-MC 实现差异审计
 
-本文档审计当前 `scripts/run_hf_mc_eval.py` 与官方 DoLa `tfqa_mc_eval.py` 的差异，目标是解释为什么自写 HF 结果中 DoLa 低于 vanilla，而官方 DoLa 结果中 DoLa 明显高于 baseline。
+本文档审计 `scripts/run_hf_mc_eval.py` 与官方 DoLa `tfqa_mc_eval.py` 的差异，目标是解释为什么修复前自写 HF 结果中 DoLa 低于 vanilla，而官方 DoLa 结果中 DoLa 明显高于 baseline；同时记录修复后 HF official-style 全量复核结果。
 
 ## 1. 当前结果现象
 
@@ -11,18 +11,25 @@
 | baseline | 0.2392 | 0.3925 | 0.1807 | 790 |
 | DoLa high-layer | 0.3278 | 0.6540 | 0.3289 | 790 |
 
-自写 HF LLaMA-7B TruthfulQA-MC：
+修复前自写 HF LLaMA-7B TruthfulQA-MC：
 
 | method | MC1 | MC2 | MC3 | n |
 | --- | ---: | ---: | ---: | ---: |
 | vanilla | 0.1983 | 0.3575 | 0.1757 | 817 |
 | DoLa | 0.1579 | 0.3472 | 0.1331 | 817 |
 
-这两个结果不能直接比较。它们不仅模型相同，评测入口、数据构造、prompt、scoring 和 DoLa 细节都有差异。
+修复后 HF official-style LLaMA-7B TruthfulQA-MC：
+
+| method | MC1 | MC2 | MC3 | n |
+| --- | ---: | ---: | ---: | ---: |
+| vanilla | 0.2392 | 0.3925 | 0.1807 | 790 |
+| DoLa | 0.3038 | 0.6445 | 0.3148 | 790 |
+
+修复前结果不能和官方结果直接比较，因为评测入口、数据构造、prompt、scoring 和 DoLa 细节都有差异。修复后 vanilla 与官方 baseline 对齐，DoLa 也恢复为明显高于 vanilla；但 HF DoLa 仍略低于官方 DoLa high-layer，因此残余差异仍需要解释。
 
 ## 1.1 已完成的本地修复
 
-本轮已在本机完成以下代码级修复；这些修复不依赖 GPU，但最终数值仍需在 3090 服务器上重新跑 LLaMA-7B 验证。
+本轮已完成以下代码级修复，并已在 3090 服务器上完成 LLaMA-7B 全量验证。
 
 - `scripts/run_hf_mc_eval.py` 支持 `dataset_source: official_csv`，可直接读取 `data/official_truthfulqa/TruthfulQA.csv`。
 - 新增 `scripts/truthfulqa_official_mc.py`，集中实现官方 CSV 的 MC1/MC2 target 构造和官方风格 QA prompt。
@@ -33,6 +40,7 @@
 - 输出新增 `masked_vocab_entries`、`masked_target_tokens`、`num_target_tokens`、`prompt_chars` 等诊断字段。
 - Pythia/GPT-2 旧配置显式保留 `prompt_style: simple` 和 `dola_score_mode: simple`，避免历史补充实验语义被改变。
 - `scripts/run_llama7b_truthfulqa_next_steps.sh` 已同步改成官方 CSV、official prompt、`relative_top=0.0` 和 790 条分片。
+- 全量验证输出为 `outputs/hf_official_fix/llama7b_official_style_full_summary.csv`；诊断字段显示 `masked_target_tokens=0`，说明 relative-top mask 不再扭曲候选答案 token 分数。
 
 ## 2. 高优先级问题
 
@@ -46,24 +54,25 @@
 - `Incorrect Answers`
 - `Best Incorrect Answer`
 
-自写 HF 脚本读取 HuggingFace `truthfulqa/truthful_qa` 的 `multiple_choice` 配置，validation 为 817 条，直接使用 `mc1_targets` 和 `mc2_targets`。
+修复前自写 HF 脚本读取 HuggingFace `truthfulqa/truthful_qa` 的 `multiple_choice` 配置，validation 为 817 条，直接使用 `mc1_targets` 和 `mc2_targets`。
 
 影响：
 
 - 样本数量不同，baseline 已经不可直接对齐。
 - 官方脚本会基于原始 CSV 构造 MC1/MC2 候选答案；HF 数据集的候选集合和顺序可能已经过二次处理。
-- 当前自写 HF baseline 低于官方 baseline：0.1983 vs 0.2392，说明差异不只影响 DoLa，也影响普通 likelihood scoring。
+- 修复前自写 HF baseline 低于官方 baseline：0.1983 vs 0.2392，说明差异不只影响 DoLa，也影响普通 likelihood scoring。
+- 修复后 HF official-style vanilla 为 0.2392/0.3925/0.1807，与官方 baseline 对齐，说明数据和 prompt 层面的主要偏差已经消除。
 
 涉及代码：
 
 - 自写 HF 数据加载：[scripts/run_hf_mc_eval.py](../scripts/run_hf_mc_eval.py) 第 262-263 行。
 - 官方运行脚本：[scripts/run_official_dola_truthfulqa.sh](../scripts/run_official_dola_truthfulqa.sh) 第 37-45 行。
 
-修复建议：
+修复结果：
 
-1. 新增 `scripts/run_hf_truthfulqa_csv_eval.py`，直接读取 `TruthfulQA.csv`。
-2. 用与官方一致的字段构造 MC1/MC2。
-3. 先只跑 vanilla，要求 baseline 接近官方 0.2392 后再调 DoLa。
+1. 已在 `scripts/run_hf_mc_eval.py` 中支持 `dataset_source: official_csv`，直接读取 `TruthfulQA.csv`。
+2. 已用 `scripts/truthfulqa_official_mc.py` 构造 official-style MC1/MC2 targets。
+3. vanilla 已对齐官方 baseline，后续重点转为解释 DoLa 残余差异。
 
 ### 2.2 Prompt 不一致：自写 HF 是零样本短 prompt，官方是 TruthfulQA QA prompt
 
@@ -245,17 +254,17 @@ cache[choice] = score_choice(...)
 
 因此当前主要问题不在指标聚合，而在输入、prompt 和 DoLa scoring。
 
-## 4. 建议修复路线
+## 4. 修复路线与当前状态
 
 ### Step 1：先修 vanilla 对齐
 
 目标：自写 HF vanilla baseline 接近官方 baseline 0.2392。
 
-要做：
+状态：
 
-1. 改读原始 `TruthfulQA.csv`。
-2. 复刻官方 prompt 与 MC 候选构造。
-3. 输出前 10 条逐答案分数，与官方 JSON 或官方脚本临时输出对比。
+1. 已改读原始 `TruthfulQA.csv`。
+2. 已复刻 official-style prompt 与 MC 候选构造。
+3. 全量 vanilla 已达到 MC1 0.2392、MC2 0.3925、MC3 0.1807，与官方 baseline 对齐。
 
 只有 vanilla 对齐后，DoLa 对齐才有意义。
 
@@ -263,22 +272,22 @@ cache[choice] = score_choice(...)
 
 目标：确认 `-1e9` mask 是否是 DoLa 低分主因。
 
-要做：
+状态：
 
-1. 将 LLaMA-7B TruthfulQA-MC 配置改为 `relative_top: 0.0`，先与官方主实验命令保持一致。
-2. 跑 100 条和全量。
-3. 检查输出中是否还出现 `-1e9/-2e9`。
-4. 若 DoLa 明显回升，说明当前 `relative_top=0.1` 是主要干扰源；若仍不对齐，再继续查 scoring 与 prompt。
+1. 已将 LLaMA-7B TruthfulQA-MC 配置改为 `relative_top: 0.0`，与官方主实验命令保持一致。
+2. 已完成 100 条和 790 条全量。
+3. 全量诊断显示 `masked_target_tokens=0`。
+4. DoLa 从修复前 MC1 0.1579、MC2 0.3472、MC3 0.1331 回升到 MC1 0.3038、MC2 0.6445、MC3 0.3148，说明 `relative_top=0.1` 和相关评测链路偏差确实是主要干扰源。
 
 ### Step 3：实现 official-like DoLa scoring
 
 目标：复刻官方 `lm_score` 语义。
 
-要做：
+状态：
 
-1. 移植官方 DoLa scoring 的关键逻辑。
-2. 改成 token-level premature layer selection。
-3. 将当前简化实现保留为 `dola_simple`，避免历史结果不可追踪。
+1. 已实现 `dola_score_mode: official_like`。
+2. 已改成 token-level premature layer selection。
+3. Pythia/GPT-2 旧配置保留 `prompt_style: simple` 和 `dola_score_mode: simple`，保证历史补充实验可追踪。
 
 ### Step 4：逐样本差异报告
 
@@ -298,10 +307,20 @@ cache[choice] = score_choice(...)
 
 ## 5. 当前结论
 
-当前自写 HF 实现不能作为官方 DoLa 复现结果使用，只能作为诊断和补充实验。它存在三个主要问题：
+修复前自写 HF 实现不能作为官方 DoLa 复现结果使用，只能作为诊断和补充实验。它存在三个主要问题：
 
 1. 数据和 prompt 没有对齐官方 TruthfulQA-MC。
 2. 自写配置启用了官方主结果未启用的 `relative_top=0.1`，并把大量答案 token 置为 `-1e9`，严重扭曲多选 likelihood。
 3. DoLa layer selection 和 scoring 是简化版，未复刻官方 token-level dynamic early-exit 逻辑。
 
-因此，当前“自写 HF DoLa 低于 vanilla”不能说明 DoLa 方法无效。更合理的解释是：自写实现尚未对齐官方评测链路，尤其是 relative-top 和 token-level scoring 存在实现偏差。
+因此，修复前“自写 HF DoLa 低于 vanilla”不能说明 DoLa 方法无效。更合理的解释是：自写实现尚未对齐官方评测链路，尤其是 relative-top 和 token-level scoring 存在实现偏差。
+
+修复后的 HF official-style 结果支持这一判断：vanilla 已与官方 baseline 对齐，DoLa 也明显高于 vanilla。与官方 DoLa high-layer 相比，HF DoLa 仍有小幅差距：
+
+| Metric | official DoLa | HF official-style DoLa | Difference |
+|---|---:|---:|---:|
+| MC1 | 0.3278 | 0.3038 | -0.0240 |
+| MC2 | 0.6540 | 0.6445 | -0.0095 |
+| MC3 | 0.3289 | 0.3148 | -0.0141 |
+
+后续如果继续追求逐位对齐，应优先检查官方 patched `transformers-4.28.1` 中 early-exit logits 的具体返回位置、`lm_score` 对 token 边界和 prompt prefix 的处理，以及动态 premature layer selection 与当前 HF 复刻实现是否完全一致。

@@ -84,7 +84,7 @@ configs/hf_truthfulqa.yaml
 ```yaml
 candidate_premature_layers: [16, 18, 20, 22, 24, 26, 28, 30]
 mature_layer: -1
-relative_top: 0.1
+relative_top: 0.0
 ```
 
 ### 3.2 FACTOR / GSM8K / StrategyQA / Vicuna QA
@@ -125,7 +125,7 @@ configs/hf_factor_llama7b.yaml
 
 当前阶段可在报告中写：
 
-> 本项目已用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 和 FACTOR News/Wiki 主复现实验；自写 HuggingFace 入口保留为实现诊断和补充实验。
+> 本项目已用官方 DoLa 仓库完成 LLaMA-7B TruthfulQA-MC 和 FACTOR News/Wiki 主复现实验；自写 HuggingFace 入口已完成 official-style TruthfulQA-MC 全量复核，用于定位实现差异。
 
 ### 4.2 FACTOR
 
@@ -168,8 +168,8 @@ outputs/official_dola_factor/factor_summary.csv
 | Premature selection | candidate layers 中按 JSD 动态选择 | 已实现 JSD selection | 对齐 |
 | TruthfulQA bucket | LLaMA-7B `[16,32)` 偶数层 | 已更新配置 `[16,18,...,30]` | 对齐 |
 | Mature layer | final layer | `mature_layer: -1` | 对齐 |
-| APC / relative top | 0.1 | `relative_top: 0.1` | 对齐 |
-| TruthfulQA-MC post-softmax | 论文发现不使用 post-softmax 更好 | 脚本用 contrastive logits 直接评分 | 对齐 |
+| APC / relative top | TruthfulQA-MC 主命令默认 `0.0` | `relative_top: 0.0` | 对齐 |
+| TruthfulQA-MC post-softmax | 论文发现不使用 post-softmax 更好 | 脚本用 official-like token-level contrastive log-prob 评分 | 对齐 |
 | MC1/MC2/MC3 | 官方指标 | 已实现均值汇总与逐题记录 | 对齐 |
 | LLaMA 权重 | LLaMA family | 默认 `huggyllama/llama-7b` | 近似，需要说明 |
 | GPU 环境 | V100, fp16, batch size 1 | 双 RTX 3090，官方 TruthfulQA 与 FACTOR 已完成 | 部分对齐 |
@@ -221,6 +221,17 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method do
 | LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC2 | 0.6540 | official DoLa |
 | LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC3 | 0.3289 | official DoLa |
 
+当前 HF official-style TruthfulQA-MC 复核结果：
+
+| Model | Dataset | Method | Candidate Layers | Metric | Score | Notes |
+|---|---|---|---|---|---:|---|
+| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC1 | 0.2392 | HF official-style |
+| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC2 | 0.3925 | HF official-style |
+| LLaMA-7B | TruthfulQA-MC | vanilla | none | MC3 | 0.1807 | HF official-style |
+| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC1 | 0.3038 | HF official-style |
+| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC2 | 0.6445 | HF official-style |
+| LLaMA-7B | TruthfulQA-MC | DoLa | `[16,32]` even with final 32 | MC3 | 0.3148 | HF official-style |
+
 当前官方 FACTOR 结果：
 
 | Model | Dataset | Method | Candidate Layers | Metric | Score | Notes |
@@ -237,10 +248,10 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method do
 | GPU | RTX 3090 x2 |
 | CUDA | server driver/runtime dependent |
 | PyTorch | official DoLa conda environment |
-| Transformers | TBD |
+| Transformers | official DoLa: patched 4.28.1; HF复核: local environment |
 | dtype | fp16 |
 | batch size | 1 |
-| max examples | 817 |
+| max examples | 790 |
 
 ## 8. 和论文结果不一致时如何解释
 
@@ -263,7 +274,7 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method do
 
 报告中推荐表述：
 
-> 本项目优先对齐了 DoLa 的核心机制、candidate layer bucket、mature layer、relative top、TruthfulQA-MC contrastive likelihood 和 MC1/MC2/MC3 指标实现。当前官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 已完成，结果显示 DoLa 在 TruthfulQA 三个指标和 FACTOR News/Wiki accuracy 上均优于 baseline；自写 HuggingFace 结果与官方结果不一致时，应从 prompt、tokenization、relative-top filtering 和 early-exit scoring 细节解释。
+> 本项目优先对齐了 DoLa 的核心机制、candidate layer bucket、mature layer、relative top、TruthfulQA-MC contrastive likelihood 和 MC1/MC2/MC3 指标实现。当前官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 已完成，结果显示 DoLa 在 TruthfulQA 三个指标和 FACTOR News/Wiki accuracy 上均优于 baseline；HF official-style 复核中 vanilla 已与官方 baseline 对齐，DoLa 也明显高于 vanilla，说明主要实现偏差已经修复。残余差异应继续从 tokenization、early-exit logits 和官方 `lm_score` 细节解释。
 
 ## 9. 当前已完成的第二步成果
 
@@ -275,13 +286,14 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method do
 - 调整 `scripts/run_hf_mc_eval.py` 方法命名为 `vanilla` / `dola`，避免把多选似然评分误称为 greedy/beam/sampling。
 - 完成官方 DoLa LLaMA-7B TruthfulQA-MC 主复现实验。
 - 完成官方 DoLa LLaMA-7B FACTOR News/Wiki 主复现实验。
-- 明确当前未完成项：官方/自写实现差异分析、中文事实性 benchmark、效率分析。
+- 完成 HF official-style TruthfulQA-MC 全量复核，并确认 vanilla 与官方 baseline 对齐、DoLa 高于 vanilla。
+- 明确当前未完成项：HF/官方残余差异分析、中文事实性 benchmark、效率分析。
 
 ## 10. 下一步建议
 
 下一步建议：
 
-1. 做官方 DoLa 与自写 HuggingFace TruthfulQA 实现差异分析。
+1. 做官方 DoLa 与自写 HuggingFace TruthfulQA 实现的残余差异分析。
 2. 补 layer/logits 可视化脚本模板。
 3. 扩展中文事实性 benchmark。
 4. 补效率、显存和 candidate layer 数量影响分析。
