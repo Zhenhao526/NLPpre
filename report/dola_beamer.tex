@@ -23,7 +23,7 @@
 \setbeamertemplate{footline}[frame number]
 
 \title[DoLa 事实性增强]{基于 DoLa 解码策略的大语言模型事实性增强方法复现与分析}
-\subtitle{本机机制实验与官方 LLaMA-7B 复现结果}
+\subtitle{本机机制实验、Colab 补充实验与官方 LLaMA-7B 复现结果}
 \author{自然语言处理课程大作业}
 \institute{NLPpre}
 \date{\today}
@@ -57,27 +57,27 @@
   \end{block}
 \end{frame}
 
-\begin{frame}{项目目标与当前状态}
+\begin{frame}{项目目标与结果定位}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.48\textwidth}
       \begin{block}{已完成}
         \begin{itemize}
-          \item DoLa decoding pipeline 实现
+          \item 本机可运行 DoLa 机制实验
           \item Greedy / Beam / Sampling / DoLa 对比
-          \item Layer selection 分析
-          \item Temperature 分析
-          \item 成功与失败案例分析
-          \item 报告、图表、可运行脚本
+          \item Layer selection 与 temperature 分析
+          \item Colab Pythia-1.4B 全量 TruthfulQA-MC
+          \item 官方 LLaMA-7B TruthfulQA-MC 与 FACTOR
+          \item 报告、图表、PPT、讲稿与可运行脚本
         \end{itemize}
       \end{block}
     \end{column}
     \begin{column}{0.48\textwidth}
-      \begin{alertblock}{当前限制}
+      \begin{alertblock}{结果边界}
         \begin{itemize}
-          \item 本机未检测到 \code{nvidia-smi}
-          \item Colab T4 16GB 已跑通 Pythia-1.4B
-          \item 双 RTX 3090 已跑通官方 LLaMA-7B
-          \item 已完成 TruthfulQA-MC 与 FACTOR 官方复现
+          \item 本机 17 条实验用于解释机制，不作为 benchmark 主结果
+          \item Pythia-1.4B 用于低显存真实模型补充验证
+          \item 论文设置对齐以官方 DoLa LLaMA-7B 为主
+          \item 当前主结果来自 TruthfulQA-MC 与 FACTOR 官方脚本
         \end{itemize}
       \end{alertblock}
     \end{column}
@@ -102,6 +102,11 @@
 \end{frame}
 
 \begin{frame}{数学形式}
+  \small
+  以下是本项目采用的 layer contrast 简化写法。实际多选评测中，
+  每个候选答案按 token-level likelihood 累加评分。
+
+  \vspace{0.3em}
   给定第 $t$ 个位置，第 $l$ 层 hidden state：
   \[
     h_t^l = \mathrm{TransformerLayer}_l(x_{<t})
@@ -123,7 +128,7 @@
   \]
 
   \vspace{0.3em}
-  其中 $\alpha$ 是对比强度，$T$ 是 temperature。
+  其中 $\alpha$ 是对比强度，$T$ 是 temperature；relative-top filtering 用于限制对比作用在高置信候选 token 上。
 \end{frame}
 
 \begin{frame}{DoLa Decoding Pipeline}
@@ -146,14 +151,15 @@
 
   \vspace{0.2em}
   \begin{block}{本项目实现}
-    本机脚本使用透明 layer/logits 模拟复现上述流程；
-    GPU 脚本使用 HuggingFace 模型 hidden states 和输出 embedding head 计算真实层 logits。
+    本机脚本使用透明 layer/logits 复现机制流程；
+    HuggingFace 入口用 hidden states 和 LM head 计算真实层 logits；
+    官方复现实验直接调用 DoLa 仓库的 TruthfulQA-MC 与 FACTOR 评测脚本。
   \end{block}
 \end{frame}
 
 \section{实验设置}
 
-\begin{frame}{实验设置}
+\begin{frame}{本机机制实验设置}
   \small
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.5\textwidth}
@@ -181,35 +187,36 @@
   \vspace{0.2em}
   \begin{block}{固定参数}
     Seed = 42；mature layer = 12；candidate layers = [2, 4, 6, 8, 10]；
-    relative top = 0.08；contrast $\alpha$ = 1.0。
+    relative top = 0.08；contrast $\alpha$ = 1.0。该设置用于解释机制和生成图表。
   \end{block}
 \end{frame}
 
-\begin{frame}{当前环境}
+\begin{frame}{实验环境与证据层级}
+  \small
   \begin{table}
     \centering
-    \begin{tabular}{ll}
+    \begin{tabular}{>{\raggedright\arraybackslash}p{0.20\textwidth}
+      >{\raggedright\arraybackslash}p{0.36\textwidth}
+      >{\raggedright\arraybackslash}p{0.34\textwidth}}
       \toprule
-      项目 & 当前检测结果 \\
+      环境 & 硬件/模型 & 用途 \\
       \midrule
-      OS & Windows 10 \\
-      Python & 3.13.12 \\
-      GPU & 未检测到 \code{nvidia-smi} \\
-      已安装 & \code{numpy}, \code{pandas}, \code{matplotlib} \\
-      未安装 & \code{torch}, \code{transformers}, \code{datasets} \\
+      本地 Windows & 无可用 NVIDIA GPU & 运行机制实验、绘图、报告与 PPT 编译 \\
+      Google Colab & T4 16GB，Pythia-1.4B & TruthfulQA-MC 817 条补充实验 \\
+      服务器 & Ubuntu，2$\times$ RTX 3090 24GB，LLaMA-7B & 官方 TruthfulQA-MC 与 FACTOR 主复现 \\
       \bottomrule
     \end{tabular}
   \end{table}
 
-  \begin{alertblock}{说明}
-    本机实验用于解释机制；官方 DoLa LLaMA-7B 实验用于对齐论文主结果；
-    Colab Pythia-1.4B 作为低显存补充实验。
+  \begin{alertblock}{汇报原则}
+    结论强度按证据层级区分：本机结果解释机制，Colab 结果说明低显存小模型表现，
+    官方 DoLa LLaMA-7B 结果作为当前最接近论文设置的复现实验依据。
   \end{alertblock}
 \end{frame}
 
 \section{实验结果}
 
-\begin{frame}{Baseline 对比结果}
+\begin{frame}{本机 Baseline 对比结果}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.48\textwidth}
       \begin{table}
@@ -233,7 +240,8 @@
 
   \vspace{0.3em}
   \begin{block}{观察}
-    DoLa 在当前实验中比 Greedy/Beam 高 17.6 个百分点；Sampling 随机性更强，事实性最低。
+    在该 17 条可控样本上，DoLa 比 Greedy/Beam 高 17.6 个百分点；
+    Sampling 随机性更强，事实性最低。该结果用于机制说明，不等同于大模型 benchmark。
   \end{block}
 \end{frame}
 
@@ -255,10 +263,12 @@
   \begin{block}{运行条件}
     官方 DoLa 仓库 \code{tfqa\_mc\_eval.py}；模型为 \code{huggyllama/llama-7b}；
     early-exit layers 为 \code{16,18,20,22,24,26,28,30,32}。
+    官方脚本最终汇总 790 条可评测样本。
   \end{block}
 
   \begin{block}{结论}
-    DoLa 在 MC1、MC2、MC3 上均显著高于 baseline，方向与论文主结论一致。
+    DoLa 在 MC1、MC2、MC3 上均高于 baseline，方向与论文主结论一致。
+    这里的“高于”指本次复现实验的观测结果，不额外声称统计显著性。
   \end{block}
 \end{frame}
 
@@ -282,10 +292,12 @@
   \begin{block}{运行条件}
     官方 DoLa 仓库 \code{factor\_eval.py}；模型为 \code{huggyllama/llama-7b}；
     early-exit layers 为 \code{0,2,4,6,8,10,12,14,32}。
+    News 为 1036 条，Wiki 为 2994 条。
   \end{block}
 
   \begin{block}{结论}
-    DoLa 在 News 和 Wiki 上均高于 baseline，说明收益可迁移到 FACTOR 事实性判别任务。
+    DoLa 在 News 和 Wiki 上均高于 baseline，说明在官方 FACTOR 设置下也观察到
+    与 TruthfulQA-MC 一致的提升趋势。
   \end{block}
 \end{frame}
 
@@ -311,7 +323,7 @@
 
   \begin{alertblock}{解释}
     DoLa 在 Pythia-1.4B 上仅小幅提升 MC2，但降低 MC1/MC3。
-    因此该结果用于分析小模型与低显存条件下的稳定性，不作为主结果。
+    因此该结果用于分析小模型与低显存条件下的稳定性，不作为论文设置主结果。
   \end{alertblock}
 \end{frame}
 
@@ -327,13 +339,14 @@
 
   \vspace{0.4em}
   \begin{itemize}
-    \item 固定不同 premature layer 时，accuracy 在小数据集上均为 0.882。
+    \item 固定不同 premature layer 时，accuracy 在 17 条本机样本上均为 0.882。
     \item 但越接近 mature layer，对比后的 answer probability 越低。
-    \item 说明层间差异变小时，DoLa 可利用的 contrast 信号会减弱。
+    \item 这提示层间差异变小时，DoLa 可利用的 contrast 信号可能减弱。
   \end{itemize}
 \end{frame}
 
 \begin{frame}{Temperature 分析}
+  \small
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.55\textwidth}
       \includegraphics[width=\linewidth]{temperature_sweep.png}
@@ -356,9 +369,10 @@
     \end{column}
   \end{columns}
 
-  \vspace{0.3em}
+  \vspace{0.1em}
   \begin{block}{结论}
-    Temperature 越高，多样性上升但事实性下降；DoLa 在各温度下仍优于普通 Sampling。
+    在本机 sampling sweep 中，temperature 升高后 accuracy 整体下降；
+    DoLa+Sampling 在四个温度点均高于普通 Sampling。
   \end{block}
 \end{frame}
 
@@ -381,7 +395,8 @@
 
   \vspace{0.6em}
   \begin{block}{共同点}
-    Baseline 错误多来自高频实体、表面联想或常见事实模板；DoLa 通过扣除 premature layer 中的陷阱先验修正答案。
+    这些本机案例中，Baseline 错误多来自高频实体、表面联想或常见事实模板；
+    DoLa 通过扣除 premature layer 中的陷阱先验修正答案。
   \end{block}
 \end{frame}
 
@@ -410,11 +425,11 @@
 \begin{frame}{结论}
   \begin{itemize}
     \item DoLa 通过同一模型内部的 layer contrast 改变 decoding 分布。
-    \item 本机实验中，DoLa 的 accuracy/truthfulness 从 0.706 提升到 0.882。
+    \item 本机机制实验中，DoLa 的 accuracy/truthfulness 从 0.706 提升到 0.882。
     \item 官方 LLaMA-7B TruthfulQA-MC 中，DoLa 在 MC1/MC2/MC3 上均优于 baseline。
     \item 官方 LLaMA-7B FACTOR 中，DoLa 在 News/Wiki accuracy 上均优于 baseline。
     \item Colab Pythia-1.4B 全量评测已打通，DoLa 小幅提升 MC2 但降低 MC1/MC3。
-    \item Temperature 分析显示：随机性增强会降低 factuality，DoLa 可部分缓解。
+    \item 本机 temperature 分析显示：更高采样温度会降低 accuracy，DoLa 可部分缓解。
     \item 失败案例说明：DoLa 不能创造模型没有掌握的事实知识。
   \end{itemize}
 
@@ -427,7 +442,7 @@
 \begin{frame}{下一步提升方向}
   \begin{enumerate}
     \item 对比自写 HF 实现与官方 DoLa：prompt、tokenization、relative top、scoring。
-    \item 加强 logits 可视化：成功/失败样例的 answer/trap logits 曲线。
+    \item 加强 logits 可视化：成功/失败样例的 answer/trap logits 与选层曲线。
     \item 扩展中文事实性数据集，覆盖历史、地理、文学和科学常识。
     \item 增加效率分析：latency、tokens/s、显存、candidate layers 数量影响。
     \item 与 RAG、CoT、self-consistency 等方法做扩展对比。

@@ -19,8 +19,8 @@ LOG_DIR="${LOG_DIR:-outputs/logs}"
 GPU0="${GPU0:-0}"
 GPU1="${GPU1:-1}"
 START_INDEX="${START_INDEX:-0}"
-END_INDEX="${END_INDEX:-817}"
-MID_INDEX="${MID_INDEX:-409}"
+END_INDEX="${END_INDEX:-790}"
+MID_INDEX="${MID_INDEX:-395}"
 FORCE="${FORCE:-0}"
 
 export PYTORCH_CUDA_ALLOC_CONF="${PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
@@ -40,18 +40,22 @@ configs = {
 }
 
 template = """model_name: {model_path}
+dataset_source: official_csv
+data_path: data/official_truthfulqa/TruthfulQA.csv
 dataset_name: truthfulqa/truthful_qa
 dataset_config: multiple_choice
 split: validation
-max_examples: 817
+max_examples: 790
 seed: 42
 mature_layer: -1
 candidate_premature_layers: {layers}
-relative_top: 0.1
+relative_top: 0.0
 contrast_alpha: 1.0
 temperature: 1.0
 device: cuda
-task_note: "LLaMA-7B TruthfulQA-MC diagnostic config: {name}."
+prompt_style: official
+dola_score_mode: official_like
+task_note: "Official-style LLaMA-7B TruthfulQA-MC diagnostic config: {name}."
 """
 
 out_dir = Path("configs/generated")

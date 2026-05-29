@@ -1,13 +1,17 @@
 model_name: huggyllama/llama-7b
+dataset_source: official_csv
+data_path: data/official_truthfulqa/TruthfulQA.csv
 dataset_name: truthfulqa/truthful_qa
 dataset_config: multiple_choice
 split: validation
-max_examples: 817
+max_examples: 790
 seed: 42
 mature_layer: -1
 candidate_premature_layers: [16, 18, 20, 22, 24, 26, 28, 30]
-relative_top: 0.1
+relative_top: 0.0
 contrast_alpha: 1.0
 temperature: 1.0
 device: cuda
-task_note: "Paper-aligned LLaMA-7B TruthfulQA-MC bucket: even layers in [16, 32), mature layer -1."
+prompt_style: official
+dola_score_mode: official_like
+task_note: "Official-style LLaMA-7B TruthfulQA-MC: original CSV, official QA prompt, high-layer bucket, relative_top 0.0."

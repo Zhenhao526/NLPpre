@@ -4,7 +4,7 @@ data_path: data/official_truthfulqa/TruthfulQA.csv
 dataset_name: truthfulqa/truthful_qa
 dataset_config: multiple_choice
 split: validation
-max_examples: 790
+max_examples: 10
 seed: 42
 mature_layer: -1
 candidate_premature_layers: [16, 18, 20, 22, 24, 26, 28, 30]
@@ -14,4 +14,4 @@ temperature: 1.0
 device: cuda
 prompt_style: official
 dola_score_mode: official_like
-task_note: "Local downloaded LLaMA-7B official-style TruthfulQA-MC on RTX 3090."
+task_note: "10-example official-style LLaMA-7B TruthfulQA-MC smoke test."

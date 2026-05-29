@@ -10,4 +10,6 @@ relative_top: 0.1
 contrast_alpha: 1.0
 temperature: 1.0
 device: cuda
+prompt_style: simple
+dola_score_mode: simple
 task_note: "Colab 16GB fallback: Pythia-1.4B TruthfulQA-MC full validation."

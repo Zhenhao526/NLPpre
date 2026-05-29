@@ -10,4 +10,6 @@ relative_top: 0.1
 contrast_alpha: 1.0
 temperature: 1.0
 device: cuda
+prompt_style: simple
+dola_score_mode: simple
 task_note: "Lightning AI smoke test. Uses small GPT-2 to validate code, dataset loading, MC1/MC2/MC3, and DoLa pipeline before running LLaMA-7B."

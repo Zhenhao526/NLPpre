@@ -19,18 +19,28 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import torch
 import yaml
-from datasets import load_dataset
-from tqdm import tqdm
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
+try:
+    import torch
+    from datasets import load_dataset
+    from tqdm import tqdm
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+except ModuleNotFoundError as exc:  # pragma: no cover - exercised in minimal local envs
+    missing = exc.name or "required package"
+    raise SystemExit(
+        f"Missing dependency '{missing}'. Install real-model dependencies from requirements.txt "
+        "or run the lightweight helper tests instead."
+    ) from exc
+
+from truthfulqa_official_mc import build_prompt_and_answer, load_official_truthfulqa_csv
 from truthfulqa_metrics import compute_mc_metrics
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "hf_truthfulqa.yaml"
 DEFAULT_OUTPUT = PROJECT_ROOT / "outputs" / "hf_mc_eval.csv"
+DEFAULT_OFFICIAL_CSV = PROJECT_ROOT / "data" / "official_truthfulqa" / "TruthfulQA.csv"
 DATASET_ALIASES = {
     "truthful_qa": "truthfulqa/truthful_qa",
 }
@@ -97,13 +107,17 @@ def apply_relative_top_filter(
     final_logits: torch.Tensor,
     contrastive_logits: torch.Tensor,
     relative_top: float,
-) -> torch.Tensor:
+    target_ids: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, int, int]:
     if relative_top <= 0:
-        return contrastive_logits
+        return contrastive_logits, 0, 0
     probs = torch.softmax(final_logits.float(), dim=-1)
     threshold = torch.max(probs, dim=-1, keepdim=True).values * relative_top
     mask = probs < threshold
-    return contrastive_logits.masked_fill(mask, -1e9)
+    masked_target_tokens = 0
+    if target_ids is not None:
+        masked_target_tokens = int(mask.gather(-1, target_ids.unsqueeze(-1)).sum().item())
+    return contrastive_logits.masked_fill(mask, -1e9), int(mask.sum().item()), masked_target_tokens
 
 
 def js_divergence(log_probs_a: torch.Tensor, log_probs_b: torch.Tensor) -> torch.Tensor:
@@ -116,6 +130,24 @@ def js_divergence(log_probs_a: torch.Tensor, log_probs_b: torch.Tensor) -> torch
     )
 
 
+def select_premature_layers_by_token(
+    model: AutoModelForCausalLM,
+    hidden_states: tuple[torch.Tensor, ...],
+    candidate_layers: list[int],
+    mature_layer: int,
+    token_positions: torch.Tensor,
+) -> tuple[torch.Tensor, list[int]]:
+    mature_log_probs = log_softmax_from_hidden(model, hidden_states[mature_layer][:, token_positions, :])
+    scores = []
+    for layer in candidate_layers:
+        layer_log_probs = log_softmax_from_hidden(model, hidden_states[layer][:, token_positions, :])
+        scores.append(js_divergence(mature_log_probs, layer_log_probs).squeeze(0))
+    score_tensor = torch.stack(scores, dim=0)
+    selected_offsets = torch.argmax(score_tensor, dim=0)
+    selected_layers = [candidate_layers[int(offset)] for offset in selected_offsets.detach().cpu().tolist()]
+    return selected_offsets, selected_layers
+
+
 def select_premature_layer(
     model: AutoModelForCausalLM,
     hidden_states: tuple[torch.Tensor, ...],
@@ -123,12 +155,14 @@ def select_premature_layer(
     mature_layer: int,
     token_positions: torch.Tensor,
 ) -> int:
-    mature_log_probs = log_softmax_from_hidden(model, hidden_states[mature_layer][:, token_positions, :])
-    scores = []
-    for layer in candidate_layers:
-        layer_log_probs = log_softmax_from_hidden(model, hidden_states[layer][:, token_positions, :])
-        scores.append((float(js_divergence(mature_log_probs, layer_log_probs).mean().item()), layer))
-    return max(scores)[1]
+    _, selected_layers = select_premature_layers_by_token(
+        model,
+        hidden_states,
+        candidate_layers,
+        mature_layer,
+        token_positions,
+    )
+    return int(pd.Series(selected_layers).mode().iloc[0])
 
 
 def score_choice(
@@ -142,13 +176,33 @@ def score_choice(
     relative_top: float,
     contrast_alpha: float,
     device: str,
-) -> tuple[float, int | None]:
-    prompt = f"Question: {question}\nAnswer:"
+    prompt_style: str,
+    dola_score_mode: str,
+) -> tuple[float, dict[str, Any]]:
+    if prompt_style == "official":
+        prompt, continuation = build_prompt_and_answer(question, choice)
+        full_text = prompt + continuation
+    elif prompt_style == "simple":
+        prompt = f"Question: {question}\nAnswer:"
+        continuation = " " + choice
+        full_text = prompt + continuation
+    else:
+        raise ValueError(f"Unknown prompt_style: {prompt_style}")
+
     prompt_ids = tokenizer(prompt, return_tensors="pt", add_special_tokens=True).input_ids.to(device)
-    full_ids = tokenizer(prompt + " " + choice, return_tensors="pt", add_special_tokens=True).input_ids.to(device)
+    full_ids = tokenizer(full_text, return_tensors="pt", add_special_tokens=True).input_ids.to(device)
     continuation_start = prompt_ids.shape[1]
+    metadata: dict[str, Any] = {
+        "selected_layers": [],
+        "selected_layer_mode": None,
+        "masked_vocab_entries": 0,
+        "masked_target_tokens": 0,
+        "num_target_tokens": 0,
+        "prompt_chars": len(prompt),
+        "full_input_chars": len(full_text),
+    }
     if full_ids.shape[1] <= continuation_start:
-        return float("-inf"), None
+        return float("-inf"), metadata
 
     labels = full_ids[:, 1:]
     with torch.no_grad():
@@ -156,24 +210,61 @@ def score_choice(
     hidden_states = outputs.hidden_states
     token_positions = torch.arange(continuation_start - 1, full_ids.shape[1] - 1, device=device)
     target_ids = labels[:, token_positions]
+    metadata["num_target_tokens"] = int(target_ids.numel())
 
     if method in {"vanilla", "greedy", "beam", "sampling"}:
         log_probs = torch.log_softmax(outputs.logits[:, token_positions, :].float(), dim=-1)
-        return float(log_probs.gather(-1, target_ids.unsqueeze(-1)).squeeze(-1).sum().item()), None
+        return float(log_probs.gather(-1, target_ids.unsqueeze(-1)).squeeze(-1).sum().item()), metadata
 
     if method != "dola":
         raise ValueError(f"Unknown method: {method}")
 
-    premature_layer = select_premature_layer(model, hidden_states, candidate_layers, mature_layer, token_positions)
     final_logits = logits_from_hidden(model, hidden_states[mature_layer][:, token_positions, :]).float()
-    premature_logits = logits_from_hidden(model, hidden_states[premature_layer][:, token_positions, :]).float()
-    # TruthfulQA-MC in the paper scores answer likelihoods with contrastive
-    # logits directly rather than applying post-softmax layer probabilities.
-    contrastive_logits = final_logits - contrast_alpha * premature_logits
-    contrastive_logits = apply_relative_top_filter(final_logits, contrastive_logits, relative_top)
-    log_probs = torch.log_softmax(contrastive_logits, dim=-1)
-    score = log_probs.gather(-1, target_ids.unsqueeze(-1)).squeeze(-1).sum().item()
-    return float(score), premature_layer
+    selected_offsets, selected_layers = select_premature_layers_by_token(
+        model,
+        hidden_states,
+        candidate_layers,
+        mature_layer,
+        token_positions,
+    )
+    metadata["selected_layers"] = selected_layers
+    metadata["selected_layer_mode"] = int(pd.Series(selected_layers).mode().iloc[0]) if selected_layers else None
+    premature_logits_by_layer = torch.stack(
+        [logits_from_hidden(model, hidden_states[layer][:, token_positions, :]).float() for layer in candidate_layers],
+        dim=0,
+    ).squeeze(1)
+    premature_logits = premature_logits_by_layer[selected_offsets, torch.arange(token_positions.numel(), device=device), :].unsqueeze(0)
+
+    if dola_score_mode == "simple":
+        contrastive_logits = final_logits - contrast_alpha * premature_logits
+        contrastive_logits, masked_entries, masked_target_tokens = apply_relative_top_filter(
+            final_logits,
+            contrastive_logits,
+            relative_top,
+            target_ids,
+        )
+        metadata["masked_vocab_entries"] = masked_entries
+        metadata["masked_target_tokens"] = masked_target_tokens
+        log_probs = torch.log_softmax(contrastive_logits, dim=-1)
+        score = log_probs.gather(-1, target_ids.unsqueeze(-1)).squeeze(-1).sum().item()
+        return float(score), metadata
+
+    if dola_score_mode != "official_like":
+        raise ValueError(f"Unknown dola_score_mode: {dola_score_mode}")
+
+    final_log_probs = torch.log_softmax(final_logits, dim=-1)
+    premature_log_probs = torch.log_softmax(premature_logits, dim=-1)
+    diff_logits = final_log_probs - contrast_alpha * premature_log_probs
+    diff_logits, masked_entries, masked_target_tokens = apply_relative_top_filter(
+        final_logits,
+        diff_logits,
+        relative_top,
+        target_ids,
+    )
+    metadata["masked_vocab_entries"] = masked_entries
+    metadata["masked_target_tokens"] = masked_target_tokens
+    score = diff_logits.gather(-1, target_ids.unsqueeze(-1)).squeeze(-1).sum().item()
+    return float(score), metadata
 
 
 def get_truthfulqa_targets(example: dict[str, Any]) -> tuple[str, dict[str, Any], dict[str, Any]]:
@@ -183,6 +274,29 @@ def get_truthfulqa_targets(example: dict[str, Any]) -> tuple[str, dict[str, Any]
     if mc1_targets is None or mc2_targets is None:
         raise ValueError("TruthfulQA multiple_choice examples must contain mc1_targets and mc2_targets.")
     return question, mc1_targets, mc2_targets
+
+
+def load_eval_examples(config: dict[str, Any]) -> list[dict[str, Any]]:
+    dataset_source = str(config.get("dataset_source", "hf"))
+    if dataset_source == "hf":
+        dataset_name = normalize_dataset_name(str(config["dataset_name"]))
+        dataset = load_dataset(dataset_name, config["dataset_config"], split=config["split"])
+        max_examples = config.get("max_examples")
+        if max_examples:
+            dataset = dataset.select(range(min(int(max_examples), len(dataset))))
+        return [dict(example, idx=int(idx)) for idx, example in enumerate(dataset)]
+
+    if dataset_source == "official_csv":
+        csv_path = Path(config.get("data_path", DEFAULT_OFFICIAL_CSV))
+        if not csv_path.is_absolute():
+            csv_path = PROJECT_ROOT / csv_path
+        examples = load_official_truthfulqa_csv(csv_path)
+        max_examples = config.get("max_examples")
+        if max_examples:
+            examples = examples[: int(max_examples)]
+        return examples
+
+    raise ValueError(f"Unknown dataset_source: {dataset_source}")
 
 
 def score_target_choices(
@@ -196,10 +310,12 @@ def score_target_choices(
     relative_top: float,
     contrast_alpha: float,
     device: str,
-    cache: dict[str, tuple[float, int | None]],
-) -> tuple[list[float], list[int | None]]:
+    prompt_style: str,
+    dola_score_mode: str,
+    cache: dict[str, tuple[float, dict[str, Any]]],
+) -> tuple[list[float], list[dict[str, Any]]]:
     scores: list[float] = []
-    selected_layers: list[int | None] = []
+    metadata_rows: list[dict[str, Any]] = []
     for choice in choices:
         if choice not in cache:
             cache[choice] = score_choice(
@@ -213,11 +329,13 @@ def score_target_choices(
                 relative_top,
                 contrast_alpha,
                 device,
+                prompt_style,
+                dola_score_mode,
             )
-        score, selected_layer = cache[choice]
+        score, metadata = cache[choice]
         scores.append(score)
-        selected_layers.append(selected_layer)
-    return scores, selected_layers
+        metadata_rows.append(metadata)
+    return scores, metadata_rows
 
 
 def main() -> None:
@@ -259,21 +377,19 @@ def main() -> None:
     if not candidate_layers:
         raise ValueError("No valid candidate_premature_layers remain after layer normalization.")
 
-    dataset_name = normalize_dataset_name(str(config["dataset_name"]))
-    dataset = load_dataset(dataset_name, config["dataset_config"], split=config["split"])
-    max_examples = config.get("max_examples")
-    if max_examples:
-        dataset = dataset.select(range(min(int(max_examples), len(dataset))))
-    dataset_size = len(dataset)
+    examples = load_eval_examples(config)
+    dataset_size = len(examples)
     start_index = max(0, int(args.start_index))
     end_index = dataset_size if args.end_index is None else min(int(args.end_index), dataset_size)
     if not 0 <= start_index <= end_index <= dataset_size:
         raise ValueError(f"Invalid shard range [{start_index}, {end_index}) for dataset size {dataset_size}.")
-    dataset = dataset.select(range(start_index, end_index))
+    examples = examples[start_index:end_index]
+    prompt_style = str(config.get("prompt_style", "simple"))
+    dola_score_mode = str(config.get("dola_score_mode", "official_like"))
 
     methods = ["vanilla", "dola"] if args.method == "all" else [args.method]
     rows: list[dict[str, Any]] = []
-    for local_idx, example in enumerate(tqdm(dataset, desc=f"Evaluating [{start_index}, {end_index})")):
+    for local_idx, example in enumerate(tqdm(examples, desc=f"Evaluating [{start_index}, {end_index})")):
         idx = start_index + local_idx
         question, mc1_targets, mc2_targets = get_truthfulqa_targets(example)
         mc1_choices = list(mc1_targets["choices"])
@@ -281,8 +397,8 @@ def main() -> None:
         mc2_choices = list(mc2_targets["choices"])
         mc2_labels = [int(x) for x in mc2_targets["labels"]]
         for method in methods:
-            score_cache: dict[str, tuple[float, int | None]] = {}
-            mc1_scores, mc1_selected_layers = score_target_choices(
+            score_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+            mc1_scores, mc1_metadata = score_target_choices(
                 model,
                 tokenizer,
                 question,
@@ -293,9 +409,11 @@ def main() -> None:
                 float(config["relative_top"]),
                 float(config["contrast_alpha"]),
                 device,
+                prompt_style,
+                dola_score_mode,
                 score_cache,
             )
-            mc2_scores, mc2_selected_layers = score_target_choices(
+            mc2_scores, mc2_metadata = score_target_choices(
                 model,
                 tokenizer,
                 question,
@@ -306,16 +424,26 @@ def main() -> None:
                 float(config["relative_top"]),
                 float(config["contrast_alpha"]),
                 device,
+                prompt_style,
+                dola_score_mode,
                 score_cache,
             )
             metrics = compute_mc_metrics(mc1_scores, mc1_labels, mc2_scores, mc2_labels)
             mc1_pred_idx = int(metrics["mc1_pred_idx"])
             mc1_best_idx = int(metrics["mc1_best_idx"])
-            selected_layers = [x for x in mc1_selected_layers + mc2_selected_layers if x is not None]
+            all_metadata = mc1_metadata + mc2_metadata
+            selected_layers = [layer for metadata in all_metadata for layer in metadata.get("selected_layers", [])]
+            masked_vocab_entries = int(sum(int(metadata.get("masked_vocab_entries", 0)) for metadata in all_metadata))
+            masked_target_tokens = int(sum(int(metadata.get("masked_target_tokens", 0)) for metadata in all_metadata))
+            num_target_tokens = int(sum(int(metadata.get("num_target_tokens", 0)) for metadata in all_metadata))
             rows.append(
                 {
                     "idx": idx,
                     "method": method,
+                    "dataset_source": str(config.get("dataset_source", "hf")),
+                    "prompt_style": prompt_style,
+                    "dola_score_mode": dola_score_mode if method == "dola" else "",
+                    "relative_top": float(config["relative_top"]),
                     "question": question,
                     "MC1": metrics["MC1"],
                     "MC2": metrics["MC2"],
@@ -332,6 +460,10 @@ def main() -> None:
                     "mc2_scores_json": json.dumps(mc2_scores, ensure_ascii=False),
                     "selected_layers_json": json.dumps(selected_layers, ensure_ascii=False),
                     "selected_layer_mode": int(pd.Series(selected_layers).mode().iloc[0]) if selected_layers else None,
+                    "masked_vocab_entries": masked_vocab_entries,
+                    "masked_target_tokens": masked_target_tokens,
+                    "num_target_tokens": num_target_tokens,
+                    "prompt_chars": max([int(metadata.get("prompt_chars", 0)) for metadata in all_metadata], default=0),
                 }
             )
 
