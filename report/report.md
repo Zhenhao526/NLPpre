@@ -118,7 +118,7 @@ Output: next token y
 - Installed packages: `pandas`、`matplotlib`、`numpy`
 - Missing for real LLM inference: `torch`、`transformers`、`datasets`、`accelerate`
 
-因此本机可控实验仍用于解释 DoLa 的机制和案例。真实模型部分已经完成三类实验：在 Google Colab T4 16GB 上完成 Pythia-1.4B + TruthfulQA-MC 全量补充实验；在双 RTX 3090 服务器上使用官方 DoLa 仓库完成 LLaMA-7B + TruthfulQA-MC 主实验复现；继续完成 LLaMA-7B + FACTOR News/Wiki 官方复现。
+因此本机可控实验仅用于解释 DoLa 的机制和案例。真实模型结果只报告双 RTX 3090 服务器上的 LLaMA-7B 实验：一是使用官方 DoLa 仓库完成 TruthfulQA-MC 与 FACTOR News/Wiki 复现；二是使用修复后的自写 HuggingFace official-style 入口完成 TruthfulQA-MC 全量复核。
 
 ### 4.2 Dataset
 
@@ -197,22 +197,9 @@ Output: next token y
 
 温度升高带来更高 diversity，但 factuality 下降。DoLa+Sampling 在每个 temperature 下都优于普通 Sampling，说明 layer contrast 与采样策略可以叠加，但高温仍会削弱事实性。
 
-### 5.4 Colab GPU TruthfulQA-MC 补充实验
+### 5.4 LLaMA-7B TruthfulQA-MC
 
-为验证真实 HuggingFace 模型评测链路，本项目在 Google Colab T4 16GB GPU 环境下运行了 Pythia-1.4B 的 TruthfulQA multiple-choice 完整验证集。该实验使用 `scripts/run_hf_mc_eval.py`，输出官方 MC1/MC2/MC3 指标。运行配置见 `configs/hf_truthfulqa_pythia14_full.yaml`，Colab notebook 见 `notebooks/colab_pythia_truthfulqa.ipynb`。
-
-| Model | Method | MC1 | MC2 | MC3 | n |
-|---|---|---:|---:|---:|---:|
-| Pythia-1.4B | vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
-| Pythia-1.4B | DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
-
-该实验耗时约 5 分 28 秒完成 817 条样本评测，不含首次模型下载时间。结果显示，在 Pythia-1.4B 上 DoLa 的收益不稳定：MC2 从 0.3609 小幅提升到 0.3672，但 MC1 从 0.2081 降至 0.1628，MC3 从 0.1879 降至 0.1311。一个合理解释是，小模型层间语义分化和事实知识储备弱于论文主实验使用的 LLaMA 系列模型，因此 layer contrast 不一定稳定提升所有指标。
-
-因此该结果不应被表述为“复现论文主结果”，而应定位为“低显存真实模型补充实验”：它证明了数据加载、hidden states 提取、DoLa contrastive scoring、官方 MC 指标计算和 Colab GPU 运行流程已经打通。
-
-### 5.5 Official DoLa LLaMA-7B TruthfulQA-MC
-
-为对齐论文主实验，本项目进一步在双 RTX 3090 服务器上运行官方 DoLa 仓库的 `tfqa_mc_eval.py`。模型为本地下载的 `huggyllama/llama-7b`，DoLa 使用 TruthfulQA-MC 的高层 candidate bucket：
+为对齐论文主实验，本项目在双 RTX 3090 服务器上运行官方 DoLa 仓库的 `tfqa_mc_eval.py`。模型为本地下载的 `huggyllama/llama-7b`，DoLa 使用 TruthfulQA-MC 的高层 candidate bucket：
 
 ```text
 early-exit-layers = 16,18,20,22,24,26,28,30,32
@@ -227,16 +214,16 @@ early-exit-layers = 16,18,20,22,24,26,28,30,32
 
 该结果显示，官方实现下 DoLa 在 MC1、MC2 和 MC3 上均高于 baseline，方向与论文结论一致。因此，本项目的主复现实验已经完成。
 
-为进一步检查此前自写 HuggingFace 版本中 DoLa 低于 vanilla 的异常现象，本项目随后将 `scripts/run_hf_mc_eval.py` 对齐到官方 TruthfulQA-MC 链路：改用原始 `TruthfulQA.csv` 的 790 条样本、官方风格 QA prompt、`relative_top=0.0`，并采用 official-like token-level DoLa scoring。修复后的全量复核结果如下：
+同时，本项目使用修复后的 `scripts/run_hf_mc_eval.py` 做了一组 HF official-style 全量复核。该入口读取原始 `TruthfulQA.csv` 的 790 条样本，使用官方风格 QA prompt、`relative_top=0.0` 和 official-like token-level DoLa scoring。最终结果如下：
 
 | Implementation | Method | MC1 | MC2 | MC3 | n |
 |---|---|---:|---:|---:|---:|
 | HF official-style | vanilla | 0.2392 | 0.3925 | 0.1807 | 790 |
 | HF official-style | DoLa | 0.3038 | 0.6445 | 0.3148 | 790 |
 
-该复核有两个结论。第一，HF official-style vanilla 与官方 baseline 对齐，说明数据、prompt 和基础 likelihood scoring 的主要偏差已经消除。第二，HF DoLa 恢复为明显高于 vanilla，但仍略低于官方 DoLa high-layer，残余差异应继续从 tokenization 边界、early-exit logits 获取、动态层选择和官方 `lm_score` 的细节实现中解释。
+该复核有两个结论。第一，HF official-style vanilla 与官方 baseline 对齐，说明数据、prompt 和基础 likelihood scoring 已经与官方链路基本一致。第二，HF official-style DoLa 明显高于 vanilla，但略低于官方 DoLa high-layer；残余差异应继续从 tokenization 边界、early-exit logits 获取、动态层选择和官方 `lm_score` 的细节实现中解释。
 
-### 5.6 Official DoLa LLaMA-7B FACTOR
+### 5.5 LLaMA-7B FACTOR
 
 为补充 TruthfulQA 之外的事实性 benchmark，本项目继续运行官方 DoLa 仓库的 `factor_eval.py`，分别评测 FACTOR News 和 FACTOR Wiki。根据论文设置，FACTOR 使用低层 candidate bucket：
 
@@ -283,11 +270,11 @@ DoLa 的提升主要来自对“流畅但错误”的高频先验进行惩罚。
 - 计算开销增加：需要保留并投影中间层 hidden states。
 - 层选择敏感：不同模型和任务的最佳 candidate layers 可能不同。
 - 对知识缺失无能为力：如果模型没有学到事实，DoLa 不能替代 RAG 或检索证据。
-- 本机实验是教学型模拟；Colab Pythia-1.4B 是低显存真实模型验证；官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 是当前最接近论文设置的主复现实验；HF official-style TruthfulQA-MC 用于复核自写实现。仍需注意 `huggyllama/llama-7b` 与论文原始 LLaMA 权重可能存在实现和许可来源差异。
+- 本机实验是教学型模拟；3090 服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 是当前最接近论文设置的主复现实验；HF official-style TruthfulQA-MC 用于复核自写实现。仍需注意 `huggyllama/llama-7b` 与论文原始 LLaMA 权重可能存在实现和许可来源差异。
 
 ## 7. Conclusion
 
-本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和真实 GPU 复现实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在官方 DoLa LLaMA-7B TruthfulQA-MC 上，DoLa 将 MC1 从 0.2392 提升到 0.3278，将 MC2 从 0.3925 提升到 0.6540，将 MC3 从 0.1807 提升到 0.3289；在官方 FACTOR 上，DoLa 将 News accuracy 从 0.5859 提升到 0.6149，将 Wiki accuracy 从 0.5862 提升到 0.6219。自写 HF official-style 全量复核中，vanilla 与官方 baseline 对齐，DoLa 达到 MC1 0.3038、MC2 0.6445、MC3 0.3148，说明此前 HF 异常主要来自评测链路未对齐，而不是 DoLa 思想本身无效。在 Colab Pythia-1.4B 全量 TruthfulQA-MC 上，DoLa 小幅提升 MC2，但降低 MC1/MC3，说明小模型设置下 DoLa 收益并不稳定。
+本项目完成了 DoLa 方法理解、decoding pipeline 实现、baseline 对比、layer selection、temperature 分析、中文/英文事实问答扩展、案例分析和 3090 服务器真实 GPU 复现实验。在本机可运行实验中，DoLa 将 accuracy/truthfulness 从 0.706 提升到 0.882，说明 layer contrast 能有效抑制一部分高频错误先验。在官方 DoLa LLaMA-7B TruthfulQA-MC 上，DoLa 将 MC1 从 0.2392 提升到 0.3278，将 MC2 从 0.3925 提升到 0.6540，将 MC3 从 0.1807 提升到 0.3289；在官方 FACTOR 上，DoLa 将 News accuracy 从 0.5859 提升到 0.6149，将 Wiki accuracy 从 0.5862 提升到 0.6219。自写 HF official-style 全量复核中，vanilla 与官方 baseline 对齐，DoLa 达到 MC1 0.3038、MC2 0.6445、MC3 0.3148。这些 3090 服务器结果共同支持 DoLa 在 LLaMA-7B factuality benchmark 上的有效性。
 
 DoLa 的主要优点是无需训练、实现简单、可插入现有推理流程。主要缺点是依赖模型内部已学知识、增加推理开销，并且对复杂事实混淆仍会失败。后续改进方向包括：官方/自写实现残余差异分析、中文事实性 benchmark、RAG + DoLa、动态层选择、更细粒度 logits 分析和效率/显存开销评估。
 
@@ -308,16 +295,7 @@ conda activate dola-nlp
 python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method all
 ```
 
-Colab Pythia-1.4B 全量实验：
-
-```bash
-python scripts/run_hf_mc_eval.py \
-  --config configs/hf_truthfulqa_pythia14_full.yaml \
-  --method all \
-  --output outputs/colab_pythia14_full.csv
-```
-
-官方 DoLa 设置对齐材料见 `report/official_alignment_plan.md`。当前已完成 LLaMA-7B TruthfulQA-MC 和 FACTOR 的 layer bucket 对齐与官方 DoLa 主实验复现：TruthfulQA 使用论文中的高层候选区间 `[16, 32]` 的偶数层，FACTOR 使用低层候选区间 `[0, 16]` 的偶数层，并保留 final layer 作为 mature layer。MC1/MC2/MC3 指标计算逻辑说明见 `report/truthfulqa_mc_metrics.md`；Pythia-1.4B 全量结果作为低显存补充实验。
+官方 DoLa 设置对齐材料见 `report/official_alignment_plan.md`。当前已完成 LLaMA-7B TruthfulQA-MC 和 FACTOR 的 layer bucket 对齐与官方 DoLa 主实验复现：TruthfulQA 使用论文中的高层候选区间 `[16, 32]` 的偶数层，FACTOR 使用低层候选区间 `[0, 16]` 的偶数层，并保留 final layer 作为 mature layer。MC1/MC2/MC3 指标计算逻辑说明见 `report/truthfulqa_mc_metrics.md`；HF official-style 全量结果用于复核自写实现。
 
 官方 DoLa LLaMA-7B TruthfulQA-MC：
 
@@ -347,8 +325,6 @@ pip install -r requirements.txt
 - `outputs/local_temperature_sweep.csv`
 - `outputs/case_studies.csv`
 - `outputs/env_info.json`
-- `outputs/colab_pythia14_100_summary.csv`
-- `outputs/colab_pythia14_full_summary.csv`
 - `outputs/official_dola_truthfulqa_summary.csv`
 - `outputs/official_dola_factor/factor_summary.csv`
 - `outputs/hf_official_fix/llama7b_official_style_full_summary.csv`

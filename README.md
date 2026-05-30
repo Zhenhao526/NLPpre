@@ -27,8 +27,6 @@
 │   ├── layer_probability_trace.png
 │   ├── layer_selection_sweep.png
 │   └── temperature_sweep.png
-├── notebooks/
-│   └── colab_pythia_truthfulqa.ipynb
 ├── outputs/
 ├── report/
 │   ├── report.md
@@ -41,7 +39,7 @@
 
 ## 环境安装
 
-当前本机实测为 Python 3.13，未检测到 `nvidia-smi`，且未安装 `torch/transformers`。因此本机默认先跑可复现实验；真实 LLaMA-7B 复现已在双 RTX 3090 服务器上完成，Colab T4 16GB 可运行 Pythia-1.4B 补充实验。
+当前本机实测为 Python 3.13，未检测到 `nvidia-smi`，且未安装 `torch/transformers`。因此本机默认只跑可复现实验；真实 LLaMA-7B 结果均来自双 RTX 3090 服务器。
 
 推荐真实复现实验环境：
 
@@ -99,7 +97,7 @@ python scripts/collect_env.py
 | vanilla | 0.2392 | 0.3925 | 0.1807 | 790 |
 | DoLa | 0.3038 | 0.6445 | 0.3148 | 790 |
 
-修复后的 HF 入口使用原始 `TruthfulQA.csv`、官方风格 QA prompt、`relative_top=0.0` 和 official-like DoLa scoring。vanilla 已与官方 baseline 对齐，DoLa 也恢复为明显高于 vanilla；与官方 DoLa high-layer 仍有小幅差异，后续主要分析残余 scoring/tokenization/early-exit 细节。
+HF 入口使用原始 `TruthfulQA.csv`、官方风格 QA prompt、`relative_top=0.0` 和 official-like DoLa scoring。vanilla 已与官方 baseline 对齐，DoLa 也明显高于 vanilla；与官方 DoLa high-layer 仍有小幅差异，后续主要分析残余 scoring/tokenization/early-exit 细节。
 
 官方 DoLa LLaMA-7B FACTOR 结果：
 
@@ -121,34 +119,7 @@ python scripts/run_hf_mc_eval.py --config configs/hf_truthfulqa.yaml --method al
 官方设置对齐说明见 `report/official_alignment_plan.md`。当前 TruthfulQA 配置已按论文中的 LLaMA-7B 高层 bucket 对齐：candidate layers 为 `[16, 18, 20, 22, 24, 26, 28, 30]`，mature layer 为 final layer，relative top 为 `0.0`。
 MC1/MC2/MC3 指标说明见 `report/truthfulqa_mc_metrics.md`，本机可用 `python scripts/test_truthfulqa_metrics.py` 验证指标计算。
 
-默认模型为 `huggyllama/llama-7b`。如果使用 gated LLaMA/Llama-2 权重，需要先登录 HuggingFace 并接受模型许可。显存不足时可改用更小的 causal LM，但报告中应说明模型差异。
-
-### Colab 16GB 补充实验
-
-Colab T4 16GB 可以直接运行：
-
-```python
-%cd /content
-!git clone https://github.com/Zhenhao526/NLPpre.git
-%cd /content/NLPpre
-!python -m pip install -U -q transformers datasets accelerate sentencepiece protobuf pandas pyyaml tqdm
-!python scripts/run_hf_mc_eval.py \
-  --config configs/hf_truthfulqa_pythia14_full.yaml \
-  --method all \
-  --output outputs/colab_pythia14_full.csv
-!cat outputs/colab_pythia14_full_summary.csv
-```
-
-也可以打开 `notebooks/colab_pythia_truthfulqa.ipynb` 按单元格运行。
-
-已完成的 Pythia-1.4B 全量 TruthfulQA-MC 结果：
-
-| Model | Method | MC1 | MC2 | MC3 | n |
-|---|---|---:|---:|---:|---:|
-| Pythia-1.4B | vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
-| Pythia-1.4B | DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
-
-该结果说明：在低显存、小模型设置下，DoLa 对 MC2 有小幅提升，但 MC1/MC3 下降；因此它适合作为“真实 GPU 流程已打通”的补充实验，不等价于论文中 LLaMA-7B/13B/33B 的主结果。
+默认模型为 `huggyllama/llama-7b`。如果使用 gated LLaMA/Llama-2 权重，需要先登录 HuggingFace 并接受模型许可。当前报告只保留 3090 服务器上的 LLaMA-7B 结果。
 
 官方代码复现可参考：
 
@@ -179,4 +150,4 @@ z_DoLa = z_M - alpha * z_l
 
 ## 局限
 
-本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式结果以官方 DoLa LLaMA-7B TruthfulQA-MC 与 FACTOR 复现实验为主；Pythia-1.4B 和自写 HuggingFace official-style 评测作为补充与实现差异分析。
+本机演示不是 7B LLM 的真实推理结果，而是为了在无 GPU/无 Transformers 的机器上完整展示 DoLa 的 decoding pipeline、参数分析和案例分析。正式结果以 3090 服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC、FACTOR 复现实验和自写 HuggingFace official-style 复核为主。

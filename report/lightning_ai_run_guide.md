@@ -18,7 +18,7 @@ https://github.com/Zhenhao526/NLPpre.git
 3. 跑本机小模型 smoke test：gpt2 + 10 条 TruthfulQA
 4. 确认输出 MC1/MC2/MC3
 5. 如果 GPU 显存 >= 24GB，再跑 LLaMA-7B 10 条
-6. 最后跑 LLaMA-7B 全量 817 条
+6. 最后跑 LLaMA-7B 全量 790 条
 ```
 
 这样可以避免免费 GPU 时间浪费在环境错误、模型下载失败或显存不足上。
@@ -31,7 +31,7 @@ https://github.com/Zhenhao526/NLPpre.git
 L4 24GB / A10G 24GB / A100 40GB / A100 80GB
 ```
 
-如果只有 T4 16GB：
+如果显存低于 24GB：
 
 ```text
 只建议跑 gpt2 smoke test 或更小模型，不建议跑 LLaMA-7B DoLa。
@@ -131,7 +131,7 @@ python - <<'PY'
 from pathlib import Path
 p = Path("configs/hf_truthfulqa_llama7b_10.yaml")
 text = p.read_text()
-text = text.replace("max_examples: 817", "max_examples: 10")
+text = text.replace("max_examples: 790", "max_examples: 10")
 p.write_text(text)
 PY
 ```
@@ -183,52 +183,9 @@ nvidia-smi > outputs/lightning_nvidia_smi.txt
 python scripts/collect_env.py
 ```
 
-## 8.5 Colab 16GB fallback: Pythia-1.4B
+## 8.5 低显存 fallback 说明
 
-如果免费 GPU 只有 T4 16GB，不建议直接跑 LLaMA-7B DoLa。可以先跑 Pythia-1.4B，作为真实 GPU 模型补充实验。
-
-100 条样本：
-
-```bash
-python scripts/run_hf_mc_eval.py \
-  --config configs/hf_truthfulqa_pythia14_100.yaml \
-  --method all \
-  --output outputs/colab_pythia14_100.csv
-```
-
-查看：
-
-```bash
-cat outputs/colab_pythia14_100_summary.csv
-```
-
-如果 100 条成功，再跑全量：
-
-```bash
-python scripts/run_hf_mc_eval.py \
-  --config configs/hf_truthfulqa_pythia14_full.yaml \
-  --method all \
-  --output outputs/colab_pythia14_full.csv
-```
-
-查看：
-
-```bash
-cat outputs/colab_pythia14_full_summary.csv
-```
-
-本项目已完成一次 Colab T4 16GB 全量运行，结果为：
-
-| Model | Method | MC1 | MC2 | MC3 | n |
-|---|---|---:|---:|---:|---:|
-| Pythia-1.4B | vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
-| Pythia-1.4B | DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
-
-观察：DoLa 在 MC2 上小幅提升，但 MC1/MC3 下降。报告中应把它定位为低显存真实模型补充实验，而不是论文 LLaMA 主结果复现。
-
-报告中可以写：
-
-> 由于 Colab 免费 GPU 为 16GB，无法稳定运行 LLaMA-7B DoLa；因此使用 Pythia-1.4B 作为低显存真实模型补充实验，并保留 LLaMA-7B 配置用于 24GB+ GPU 后续复现。
+当前正式报告只保留 3090 服务器上的 LLaMA-7B 官方 DoLa 结果和 HF official-style 最终复核结果。若只有低显存免费 GPU，可用小模型做流程 smoke test，但不要把该结果写入最终汇报主结果。
 
 ## 9. 结果下载
 
@@ -237,8 +194,6 @@ cat outputs/colab_pythia14_full_summary.csv
 ```text
 outputs/lightning_smoke_gpt2_summary.csv
 outputs/lightning_llama7b_truthfulqa_summary.csv
-outputs/colab_pythia14_full_summary.csv
-outputs/colab_pythia14_full.csv
 outputs/lightning_nvidia_smi.txt
 outputs/env_info.json
 ```
@@ -323,7 +278,7 @@ GPU 信息截图 / nvidia-smi
 
 如果完成 LLaMA-7B 10 条：
 
-> 已在 Lightning AI GPU 环境中完成 LLaMA-7B 的 10 条 TruthfulQA-MC sanity check，确认 DoLa pipeline 可以在真实模型上运行。全量 817 条评测预计还需要额外 4-6 GPU 小时。
+> 已在 Lightning AI GPU 环境中完成 LLaMA-7B 的 10 条 TruthfulQA-MC sanity check，确认 DoLa pipeline 可以在真实模型上运行。全量 790 条评测预计还需要额外 GPU 机时。
 
 如果完成全量：
 

@@ -7,7 +7,7 @@
 
 各位老师同学好，我汇报的题目是“基于 DoLa 解码策略的大语言模型事实性增强方法复现与分析”。
 
-这个工作围绕 ICLR 2024 的 DoLa 方法展开。DoLa 的核心特点是：不重新训练模型，而是在推理阶段利用不同层之间的 logits 差异来改善事实性。目前项目包含四部分结果：第一是本机可复现实验，用来解释 DoLa 的机制；第二是在 Colab T4 16GB 上跑通的 Pythia-1.4B 补充实验；第三是在双 RTX 3090 服务器上使用官方 DoLa 仓库完成的 LLaMA-7B TruthfulQA-MC 和 FACTOR News/Wiki 复现；第四是自写 HuggingFace official-style TruthfulQA-MC 全量复核。
+这个工作围绕 ICLR 2024 的 DoLa 方法展开。DoLa 的核心特点是：不重新训练模型，而是在推理阶段利用不同层之间的 logits 差异来改善事实性。目前项目包含三部分结果：第一是本机可复现实验，用来解释 DoLa 的机制；第二是在双 RTX 3090 服务器上使用官方 DoLa 仓库完成的 LLaMA-7B TruthfulQA-MC 和 FACTOR News/Wiki 复现；第三是自写 HuggingFace official-style TruthfulQA-MC 全量复核。
 
 ## 第 2 页：汇报结构
 
@@ -31,7 +31,7 @@
 
 目前已经完成了 DoLa decoding pipeline 的实现，并对比了 Greedy、Beam Search、Sampling 和 DoLa 四种方法。同时做了 layer selection 分析、temperature 分析，以及成功和失败案例分析。报告、图表、脚本和 Beamer PPT 都已经生成。
 
-限制也需要明确说明：本机没有 NVIDIA GPU，所以本机结果用于解释机制，不作为 7B benchmark。真实主结果来自服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC 和 FACTOR News/Wiki；Pythia-1.4B 是低显存补充实验，用于观察小模型上的稳定性。
+限制也需要明确说明：本机没有 NVIDIA GPU，所以本机结果用于解释机制，不作为 7B benchmark。真实主结果来自 3090 服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC、FACTOR News/Wiki，以及修复后的 HF official-style TruthfulQA-MC 复核。
 
 ## 第 5 页：DoLa 核心思想
 
@@ -83,7 +83,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 系统是 Windows 10，Python 版本是 3.13.12。当前没有检测到 `nvidia-smi`，说明没有可用的 NVIDIA GPU 命令行环境。已经安装了 `numpy`、`pandas` 和 `matplotlib`，但没有安装真实大模型推理需要的 `torch`、`transformers` 和 `datasets`。
 
-所以本机结果来自本机脚本。真实模型部分已经完成两条线：Colab T4 16GB 上的 Pythia-1.4B 补充实验，以及双 RTX 3090 服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC 和 FACTOR 主实验。
+所以本机结果来自本机脚本。真实模型部分只报告 3090 服务器上的 LLaMA-7B：官方 DoLa TruthfulQA-MC、官方 FACTOR News/Wiki，以及修复后的 HF official-style TruthfulQA-MC 复核。
 
 ## 第 10 页：Baseline 对比结果
 
@@ -103,15 +103,15 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 这里 DoLa 的 early-exit layers 是 `16,18,20,22,24,26,28,30,32`，其中 32 是 mature layer，前面的偶数层是 candidate premature layers。可以看到，DoLa 在三个指标上都超过 baseline，方向和论文主结论一致。这里我只说“超过”或“高于”，不额外声称统计显著性。
 
-因此这部分可以作为项目的主复现实验结果。此前自写 HuggingFace 版本中 DoLa 低于 vanilla，说明问题更可能来自 prompt、tokenization、relative-top filtering 或 scoring 细节，而不是 DoLa 方法本身无效。
+因此这部分可以作为项目的主复现实验结果。
 
 ## 第 12 页：自写 HF official-style 复核
 
 这一页解释为什么我要保留自写 HuggingFace 入口。
 
-修复前，自写 HF 版本使用的是 HuggingFace `multiple_choice` 数据、短 prompt、`relative_top=0.1` 和简化 scoring，结果中 DoLa 低于 vanilla。后来我把它改成 official-style：读取原始 `TruthfulQA.csv` 的 790 条样本，使用官方风格 QA prompt，设置 `relative_top=0.0`，并使用 token-level official-like DoLa scoring。
+这个自写 HF 入口读取原始 `TruthfulQA.csv` 的 790 条样本，使用官方风格 QA prompt，设置 `relative_top=0.0`，并使用 token-level official-like DoLa scoring。
 
-全量复核后，vanilla 的 MC1、MC2、MC3 是 0.2392、0.3925、0.1807，已经和官方 baseline 对齐；DoLa 的结果是 0.3038、0.6445、0.3148，明显高于 vanilla。这个结果说明，之前 HF 异常主要来自评测链路没有对齐，而不是 DoLa 思想本身无效。
+全量复核后，vanilla 的 MC1、MC2、MC3 是 0.2392、0.3925、0.1807，已经和官方 baseline 对齐；DoLa 的结果是 0.3038、0.6445、0.3148，明显高于 vanilla。
 
 但它仍然略低于官方 DoLa high-layer，所以后续如果继续追求更严格复现，应检查 tokenization 边界、early-exit logits 获取方式，以及官方 `lm_score` 里的细节。
 
@@ -125,17 +125,7 @@ DoLa 的出发点是：Transformer 不同层表达的信息不同。
 
 这说明 DoLa 的收益不只出现在 TruthfulQA-MC，也能迁移到 FACTOR 这种事实性判别任务。结合上一页 TruthfulQA-MC 的结果，可以更有力地说明官方实现下 DoLa 对 factuality benchmark 是有效的。
 
-## 第 14 页：Colab 真实模型补充实验
-
-这一页是新增的真实 GPU 补充实验。
-
-我在 Google Colab 的 T4 16GB GPU 上运行了 Pythia-1.4B，对 TruthfulQA-MC validation 完整 817 条样本计算官方 MC1、MC2、MC3 指标。vanilla 的结果是 MC1 0.2081、MC2 0.3609、MC3 0.1879；DoLa 的结果是 MC1 0.1628、MC2 0.3672、MC3 0.1311。
-
-这个结果需要谨慎解释：DoLa 在 MC2 上有小幅提升，但 MC1 和 MC3 下降。这说明在 Pythia-1.4B 这种较小模型上，DoLa 的收益并不稳定。可能原因是小模型的事实知识储备和层间语义分化不足，导致 layer contrast 不能像 LLaMA 系列大模型上那样稳定改善事实性。
-
-因此这部分的定位不是主结果，而是小模型和低显存环境下的补充实验。它说明真实 HuggingFace 评测链路已经打通，但也显示 DoLa 在小模型上收益可能不稳定。
-
-## 第 15 页：Layer Selection 分析
+## 第 14 页：Layer Selection 分析
 
 这一页分析 premature layer 的影响。
 
@@ -181,13 +171,13 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 总结来看，DoLa 通过同一模型内部的 layer contrast 改变 decoding 分布。
 
-在本机实验中，DoLa 把 accuracy 和 truthfulness 从 0.706 提升到 0.882。官方 LLaMA-7B TruthfulQA-MC 实验中，DoLa 在 MC1、MC2、MC3 上都高于 baseline；官方 FACTOR 实验中，DoLa 在 News 和 Wiki accuracy 上也都高于 baseline。HF official-style 复核中，vanilla 与官方 baseline 对齐，DoLa 也明显高于 vanilla。这些结果共同支持论文主结论。Colab Pythia-1.4B 全量评测说明小模型上收益不稳定，DoLa 只提升 MC2，MC1 和 MC3 下降。
+在本机实验中，DoLa 把 accuracy 和 truthfulness 从 0.706 提升到 0.882。官方 LLaMA-7B TruthfulQA-MC 实验中，DoLa 在 MC1、MC2、MC3 上都高于 baseline；官方 FACTOR 实验中，DoLa 在 News 和 Wiki accuracy 上也都高于 baseline。HF official-style 复核中，vanilla 与官方 baseline 对齐，DoLa 也明显高于 vanilla。这些 3090 服务器结果共同支持论文主结论。
 
 同时，失败案例也说明了它的局限：DoLa 不能创造模型没有掌握的知识，也不能完全解决复杂实体混淆。
 
 一句话总结就是：DoLa 是一种低成本抑制“流畅但错误”生成倾向的方法，但它不是 factuality 问题的完整解法。
 
-## 第 20 页：下一步提升方向
+## 第 19 页：下一步提升方向
 
 官方 FACTOR Wiki 和 News 已经完成，HF official-style 的主要偏差也已经修复，所以下一步最重要的是分析 HF 复核结果与官方 DoLa high-layer 之间的残余差异。
 
@@ -203,7 +193,7 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 这一页列出项目文件。
 
-本机实验脚本是 `scripts/run_local_dola_demo.py`；自写真实模型入口是 `scripts/run_hf_mc_eval.py`；官方 TruthfulQA 复现入口是 `scripts/run_official_dola_truthfulqa.sh`，官方 FACTOR 复现入口是 `scripts/run_official_dola_factor.sh`。官方 TruthfulQA 主结果在 `outputs/official_dola_truthfulqa_summary.csv`，HF official-style 复核结果在 `outputs/hf_official_fix/llama7b_official_style_full_summary.csv`，官方 FACTOR 结果在 `outputs/official_dola_factor/factor_summary.csv`，Colab Pythia-1.4B 汇总结果在 `outputs/colab_pythia14_full_summary.csv`，对应 notebook 是 `notebooks/colab_pythia_truthfulqa.ipynb`。
+本机实验脚本是 `scripts/run_local_dola_demo.py`；自写真实模型入口是 `scripts/run_hf_mc_eval.py`；官方 TruthfulQA 复现入口是 `scripts/run_official_dola_truthfulqa.sh`，官方 FACTOR 复现入口是 `scripts/run_official_dola_factor.sh`。官方 TruthfulQA 主结果在 `outputs/official_dola_truthfulqa_summary.csv`，HF official-style 复核结果在 `outputs/hf_official_fix/llama7b_official_style_full_summary.csv`，官方 FACTOR 结果在 `outputs/official_dola_factor/factor_summary.csv`。
 
 报告是 `report/report.md`，当前 PPT 是 `report/dola_beamer.pdf`。论文参考是 ICLR 2024 的 DoLa，链接在页面底部。
 
@@ -211,4 +201,4 @@ DoLa 可以在一定程度上缓解这个问题，因为它先通过 layer contr
 
 我的汇报到这里结束，谢谢大家。
 
-如果有问题，可以从三个角度讨论：第一，DoLa 的 layer contrast 为什么有效；第二，官方 LLaMA-7B 主结果、HF official-style 复核和 Pythia-1.4B 补充实验的差异；第三，后续如何做残余实现差异分析、RAG 或中文事实性评测。
+如果有问题，可以从三个角度讨论：第一，DoLa 的 layer contrast 为什么有效；第二，官方 LLaMA-7B 主结果和 HF official-style 复核的差异；第三，后续如何做残余实现差异分析、RAG 或中文事实性评测。

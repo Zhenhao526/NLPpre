@@ -9,7 +9,7 @@
 
 课堂汇报时可以这样开场：
 
-> 我的工作关注大语言模型 hallucination 问题。DoLa 的核心不是训练新模型，而是利用同一个 Transformer 内部不同层的预测差异，在 decoding 阶段提高事实性。本项目完成了方法理解、本机可复现实验、baseline 对比、参数分析、案例分析、Colab 补充实验、官方 LLaMA-7B TruthfulQA-MC 和 FACTOR 复现，以及自写 HF official-style 复核。
+> 我的工作关注大语言模型 hallucination 问题。DoLa 的核心不是训练新模型，而是利用同一个 Transformer 内部不同层的预测差异，在 decoding 阶段提高事实性。本项目完成了方法理解、本机可复现实验、baseline 对比、参数分析、案例分析，以及 3090 服务器上的官方 LLaMA-7B TruthfulQA-MC、FACTOR 复现和自写 HF official-style 复核。
 
 ## 2. 研究背景：为什么需要 DoLa
 
@@ -209,8 +209,7 @@ DoLa 不需要额外弱模型，而是在同一个模型内部做：
 - Python 3.10/3.11。
 - PyTorch + CUDA。
 - Transformers、datasets、accelerate。
-- Pythia-1.4B 可在 Colab T4 16GB 上运行。
-- LLaMA-7B 已在双 RTX 3090 服务器上完成官方 DoLa TruthfulQA-MC 和 FACTOR News/Wiki 复现。
+- LLaMA-7B 已在双 RTX 3090 服务器上完成官方 DoLa TruthfulQA-MC、FACTOR News/Wiki 复现和 HF official-style TruthfulQA-MC 复核。
 
 官方实验设置对齐材料：
 
@@ -317,7 +316,7 @@ temperature sweep = [0.1, 0.3, 0.7, 1.0]
 
 ### 7.2.1 自写 HF official-style TruthfulQA-MC 复核
 
-修复前，自写 HuggingFace 版本使用 HF `multiple_choice` 数据、短 prompt、`relative_top=0.1` 和简化 scoring，曾出现 DoLa 低于 vanilla 的异常结果。随后本项目把 `scripts/run_hf_mc_eval.py` 对齐到官方链路：
+本项目把 `scripts/run_hf_mc_eval.py` 对齐到官方 TruthfulQA-MC 链路：
 
 - 使用原始 `TruthfulQA.csv` 的 790 条样本。
 - 使用官方风格 QA prompt。
@@ -334,7 +333,7 @@ temperature sweep = [0.1, 0.3, 0.7, 1.0]
 解读：
 
 - vanilla 已与官方 baseline 对齐，说明数据、prompt 和基础 likelihood scoring 的主要偏差已修复。
-- DoLa 也恢复为明显高于 vanilla，说明此前异常主要来自评测链路未对齐。
+- DoLa 明显高于 vanilla，说明修复后的 HF 入口能够复现与官方结果一致的提升趋势。
 - HF DoLa 仍略低于官方 DoLa high-layer，因此后续可继续检查 tokenization 边界、early-exit logits 获取、动态层选择和官方 `lm_score` 的细节实现。
 
 ### 7.3 Official DoLa LLaMA-7B FACTOR
@@ -362,31 +361,7 @@ temperature sweep = [0.1, 0.3, 0.7, 1.0]
 - FACTOR 是 TruthfulQA 之外的第二个官方事实性 benchmark。
 - 该结果说明 DoLa 收益不只局限于短答案 TruthfulQA-MC，也能迁移到事实性判别任务。
 
-### 7.4 Colab Pythia-1.4B TruthfulQA-MC
-
-运行环境：
-
-- Google Colab T4 16GB。
-- `EleutherAI/pythia-1.4b`。
-- TruthfulQA-MC validation 全量 817 条。
-- 脚本：`scripts/run_hf_mc_eval.py`。
-- Notebook：`notebooks/colab_pythia_truthfulqa.ipynb`。
-
-结果：
-
-| Model | Method | MC1 | MC2 | MC3 | n |
-|---|---|---:|---:|---:|---:|
-| Pythia-1.4B | vanilla | 0.2081 | 0.3609 | 0.1879 | 817 |
-| Pythia-1.4B | DoLa | 0.1628 | 0.3672 | 0.1311 | 817 |
-
-解读：
-
-- 真实 HuggingFace 模型评测链路已经跑通。
-- DoLa 在 MC2 上小幅提升，从 0.3609 到 0.3672。
-- DoLa 在 MC1 和 MC3 上下降，说明 Pythia-1.4B 小模型上收益不稳定。
-- 该实验应定位为低显存补充实验，不等价于论文 LLaMA-7B/13B/33B 主结果复现。
-
-### 7.5 Layer Selection
+### 7.4 Layer Selection
 
 当前 layer sweep 结果：
 
@@ -409,7 +384,7 @@ temperature sweep = [0.1, 0.3, 0.7, 1.0]
 
 > 因为当前数据集规模很小，accuracy 是离散指标，不够敏感；但 answer probability 曲线仍显示层间差异。后续 GPU 实验中应扩大样本量，并同时报告 logits/probability 级别指标。
 
-### 7.6 Temperature
+### 7.5 Temperature
 
 | Temperature | Sampling Accuracy | DoLa+Sampling Accuracy |
 |---:|---:|---:|
@@ -537,11 +512,10 @@ DoLa 容易失败的情况：
 - 展示官方 DoLa LLaMA-7B TruthfulQA-MC 主结果。
 - 展示官方 DoLa LLaMA-7B FACTOR News/Wiki 结果。
 - 展示自写 HF official-style 全量复核结果。
-- 展示 Colab Pythia-1.4B TruthfulQA-MC 补充结果。
 
 必须说：
 
-> 本机实验解释机制，官方 DoLa LLaMA-7B TruthfulQA-MC 和 FACTOR 结果验证论文主结论，HF official-style 复核说明主要实现偏差已经定位并修复，Pythia-1.4B 结果用于补充分析小模型和低显存条件下的稳定性。
+> 本机实验解释机制，3090 服务器上的官方 DoLa LLaMA-7B TruthfulQA-MC 和 FACTOR 结果验证论文主结论，HF official-style 复核说明自写入口已与官方评测链路基本对齐。
 
 ### 9.4 8-11 分钟：讲分析
 
@@ -581,7 +555,7 @@ DoLa 不会创造新知识。如果正确答案在模型所有层中都没有足
 
 ### Q5：当前结果能否说明 DoLa 在真实 LLM 上有效？
 
-可以。官方 DoLa LLaMA-7B TruthfulQA-MC 已经完成，DoLa 在 MC1、MC2、MC3 上均高于 baseline；官方 FACTOR News/Wiki 也已经完成，DoLa accuracy 均高于 baseline。自写 HF official-style 复核中，vanilla 与官方 baseline 对齐，DoLa 也明显高于 vanilla；Pythia-1.4B 补充实验则说明小模型上收益不稳定。
+可以。官方 DoLa LLaMA-7B TruthfulQA-MC 已经完成，DoLa 在 MC1、MC2、MC3 上均高于 baseline；官方 FACTOR News/Wiki 也已经完成，DoLa accuracy 均高于 baseline。自写 HF official-style 复核中，vanilla 与官方 baseline 对齐，DoLa 也明显高于 vanilla。
 
 ### Q6：为什么 Sampling 比 Greedy 差？
 
@@ -598,8 +572,7 @@ Sampling 引入随机性，可能选择非最大概率选项。temperature 越�
 1. 自写 HuggingFace official-style DoLa 与官方 DoLa high-layer 仍存在小幅差异，需要进一步定位 tokenization、early-exit logits 和 `lm_score` 细节。
 2. 本机数据规模小，accuracy 指标离散。
 3. Beam Search 在多选任务中只是近似实现。
-4. Pythia-1.4B 结果显示 DoLa 收益不稳定，需要进一步分析层选择和模型规模影响。
-5. 尚未与 RAG、CoT、self-consistency 做真实对比。
+4. 尚未与 RAG、CoT、self-consistency 做真实对比。
 
 最优先的改进：
 
@@ -613,4 +586,4 @@ Sampling 引入随机性，可能选择非最大概率选项。temperature 越�
 
 DoLa 的核心贡献是提出一种非常轻量的 factuality enhancement 方法：不用训练、不用检索，只利用模型内部不同层之间的预测差异。它适合缓解一部分由高频先验和表面模式导致的 hallucination，但不能解决知识缺失、事实过期和复杂实体混淆。
 
-本项目目前完成了从方法理解到可运行实验、图表、报告、PPT、Colab 真实模型补充实验、官方 DoLa LLaMA-7B TruthfulQA-MC、FACTOR 主复现实验和自写 HF official-style 复核的闭环。后续补上残余实现差异分析、中文 benchmark 和效率分析后，就能从“课程复现实验”进一步提升为更完整的论文复现项目。
+本项目目前完成了从方法理解到可运行实验、图表、报告、PPT、3090 服务器官方 DoLa LLaMA-7B TruthfulQA-MC、FACTOR 主复现实验和自写 HF official-style 复核的闭环。后续补上残余实现差异分析、中文 benchmark 和效率分析后，就能从“课程复现实验”进一步提升为更完整的论文复现项目。

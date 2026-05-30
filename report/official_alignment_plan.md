@@ -54,7 +54,7 @@
 
 - TruthfulQA、StrategyQA、GSM8K：greedy decode。
 - Vicuna QA：random sampling，temperature = 0.7，max new tokens = 1024。
-- latency/throughput：TruthfulQA 817 examples，default 6-shot prompt，强制生成 50 new tokens。
+- latency/throughput：论文另有 TruthfulQA 生成效率设置；当前复现汇总只报告官方 CSV 的 790 条 TruthfulQA-MC 结果。
 - adaptive plausibility constraint：`alpha = 0.1`。注意论文中的 APC alpha 不是本项目脚本里的 `contrast_alpha`。
 - repetition penalty：`theta = 1.2`，但 TruthfulQA/FACTOR 多选似然评分不需要 repetition penalty。
 

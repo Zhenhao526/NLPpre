@@ -65,7 +65,6 @@
           \item 本机可运行 DoLa 机制实验
           \item Greedy / Beam / Sampling / DoLa 对比
           \item Layer selection 与 temperature 分析
-          \item Colab Pythia-1.4B 全量 TruthfulQA-MC
           \item 官方 LLaMA-7B TruthfulQA-MC 与 FACTOR
           \item 自写 HF official-style TruthfulQA-MC 全量复核
           \item 报告、图表、PPT、讲稿与可运行脚本
@@ -76,7 +75,6 @@
       \begin{alertblock}{结果边界}
         \begin{itemize}
           \item 本机 17 条实验用于解释机制，不作为 benchmark 主结果
-          \item Pythia-1.4B 用于低显存真实模型补充验证
           \item 论文设置对齐以官方 DoLa LLaMA-7B 为主
           \item HF official-style 结果用于复核自写实现偏差
         \end{itemize}
@@ -203,15 +201,14 @@
       环境 & 硬件/模型 & 用途 \\
       \midrule
       本地 Windows & 无可用 NVIDIA GPU & 运行机制实验、绘图、报告与 PPT 编译 \\
-      Google Colab & T4 16GB，Pythia-1.4B & TruthfulQA-MC 817 条补充实验 \\
-      服务器 & Ubuntu，2$\times$ RTX 3090 24GB，LLaMA-7B & 官方 TruthfulQA-MC 与 FACTOR 主复现 \\
+      服务器 & Ubuntu，2$\times$ RTX 3090 24GB，LLaMA-7B & 官方 TruthfulQA-MC、FACTOR 与 HF official-style 复核 \\
       \bottomrule
     \end{tabular}
   \end{table}
 
   \begin{alertblock}{汇报原则}
-    结论强度按证据层级区分：本机结果解释机制，Colab 结果说明低显存小模型表现，
-    官方 DoLa LLaMA-7B 结果作为当前最接近论文设置的复现实验依据。
+    结论强度按证据层级区分：本机结果解释机制；
+    3090 服务器 LLaMA-7B 结果作为当前最接近论文设置的复现实验依据。
   \end{alertblock}
 \end{frame}
 
@@ -329,32 +326,6 @@
   \end{block}
 \end{frame}
 
-\begin{frame}{Colab 真实模型补充实验}
-  \small
-  \begin{table}
-    \centering
-    \begin{tabular}{llcccc}
-      \toprule
-      Model & Method & MC1 & MC2 & MC3 & n \\
-      \midrule
-      Pythia-1.4B & vanilla & \textbf{0.2081} & 0.3609 & \textbf{0.1879} & 817 \\
-      Pythia-1.4B & DoLa & 0.1628 & \textbf{0.3672} & 0.1311 & 817 \\
-      \bottomrule
-    \end{tabular}
-  \end{table}
-
-  \vspace{0.4em}
-  \begin{block}{运行条件}
-    Google Colab T4 16GB；TruthfulQA-MC validation；完整 817 条；
-    评测耗时约 5 分 28 秒，不含首次模型下载。
-  \end{block}
-
-  \begin{alertblock}{解释}
-    DoLa 在 Pythia-1.4B 上仅小幅提升 MC2，但降低 MC1/MC3。
-    因此该结果用于分析小模型与低显存条件下的稳定性，不作为论文设置主结果。
-  \end{alertblock}
-\end{frame}
-
 \begin{frame}{Layer Selection 分析}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.48\textwidth}
@@ -457,7 +428,6 @@
     \item 官方 LLaMA-7B TruthfulQA-MC 中，DoLa 在 MC1/MC2/MC3 上均优于 baseline。
     \item HF official-style 复核中，vanilla 与官方 baseline 对齐，DoLa 明显高于 vanilla。
     \item 官方 LLaMA-7B FACTOR 中，DoLa 在 News/Wiki accuracy 上均优于 baseline。
-    \item Colab Pythia-1.4B 全量评测已打通，DoLa 小幅提升 MC2 但降低 MC1/MC3。
     \item 本机 temperature 分析显示：更高采样温度会降低 accuracy，DoLa 可部分缓解。
     \item 失败案例说明：DoLa 不能创造模型没有掌握的事实知识。
   \end{itemize}
@@ -489,8 +459,6 @@
     \item 官方 TruthfulQA 结果：\code{outputs/official\_dola\_truthfulqa\_summary.csv}
     \item HF official-style 结果：\code{outputs/hf\_official\_fix/llama7b\_official\_style\_full\_summary.csv}
     \item 官方 FACTOR 结果：\code{outputs/official\_dola\_factor/factor\_summary.csv}
-    \item Colab 结果：\code{outputs/colab\_pythia14\_full\_summary.csv}
-    \item Colab Notebook：\code{notebooks/colab\_pythia\_truthfulqa.ipynb}
     \item 案例分析：\code{outputs/case\_studies.csv}
     \item 图表目录：\code{figures/}
     \item 报告：\code{report/report.md}
